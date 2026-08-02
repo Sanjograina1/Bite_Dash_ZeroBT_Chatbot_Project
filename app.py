@@ -347,31 +347,35 @@ if audio and API_KEY:
 st.markdown("### ZeroBT Support Portal")
 st.markdown("Ask questions using typed text or interactive audio controls.")
 
-# ── Glass Audio Toolbar Buttons ──
-ac1, ac2, ac3 = st.columns([1.5, 1.5, 3])
+# ── Glass Audio Toolbar Buttons & Speed Selection ──
+ac1, ac2, ac3 = st.columns([2, 2.5, 2.5])
 
-read_last = ac1.button("🔊 Read Answer Aloud", use_container_width=True)
-quick_audio = ac2.button("🎙️ Quick Voice Sample", use_container_width=True)
+speech_speed = ac1.selectbox("Narration Speed", ["Slow (0.5x)", "Normal (1.0x)", "Fast (1.25x)"], index=1)
+read_last = ac2.button("🔊 Read Answer Aloud", use_container_width=True)
+quick_audio = ac3.button("🎙️ Quick Voice Sample", use_container_width=True)
 
 if read_last:
     assistant_msgs = [m for m in st.session_state.messages if m["role"] == "assistant"]
     if assistant_msgs:
         last_txt = assistant_msgs[-1]["content"]
-        clean_for_speech = re.sub(r"[#*`_\-]", "", last_txt)[:300]
+        clean_for_speech = re.sub(r"[#*`_\-]", "", last_txt)[:350]
         try:
-            tts = gTTS(text=clean_for_speech, lang="en")
+            is_slow = (speech_speed == "Slow (0.5x)")
+            tts = gTTS(text=clean_for_speech, lang="en", slow=is_slow)
             fp = io.BytesIO()
             tts.write_to_fp(fp)
             fp.seek(0)
             st.session_state.last_audio_bytes = fp.read()
-            st.success("Playing audio response below...")
+            st.session_state.current_speed = speech_speed
+            st.success(f"Generated audio at {speech_speed}. Click play below to listen.")
         except Exception as e:
             st.error(f"TTS generation error: {e}")
     else:
         st.info("No assistant answer to read aloud yet.")
 
 if st.session_state.last_audio_bytes:
-    st.audio(st.session_state.last_audio_bytes, format="audio/mp3", autoplay=True)
+    # Manual playback only — NO autoplay
+    st.audio(st.session_state.last_audio_bytes, format="audio/mp3", autoplay=False)
 
 sample_query = None
 if quick_audio:
@@ -583,16 +587,6 @@ if user_input:
                     confidence = 0.0
 
                 placeholder.markdown(clean_text)
-
-                try:
-                    clean_for_tts = re.sub(r"[#*`_\-]", "", clean_text)[:300]
-                    tts = gTTS(text=clean_for_tts, lang="en")
-                    fp = io.BytesIO()
-                    tts.write_to_fp(fp)
-                    fp.seek(0)
-                    st.session_state.last_audio_bytes = fp.read()
-                except Exception:
-                    pass
 
                 # Render Query Understanding expander
                 with st.expander("🧠 Real-Time Query Understanding & Intent Analysis"):
