@@ -437,6 +437,10 @@ if user_input:
     with st.chat_message("user", avatar="👤"):
         st.markdown(user_input)
 
+    # ── Sentiment analysis ──
+    analysis = sentiment.analyze_message(user_input, API_KEY)
+    frust_score = st.session_state.tracker.update(analysis)
+
     auto_level = st.session_state.tracker.should_auto_escalate()
     wants_human = analysis.get("wants_human", False)
 
