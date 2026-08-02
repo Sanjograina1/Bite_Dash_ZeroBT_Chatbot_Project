@@ -1,0 +1,13 @@
+BITEDASH - PAYMENTS, UPI & GST INVOICING POLICY
+
+1. UPI & Online Payment Issues
+- Account Debited, Order Not Placed: If money is deducted from your bank account via UPI (Google Pay, PhonePe, Paytm, CRED) but the order fails, NPCI rules apply. The amount will automatically be reversed by your issuing bank within 2 to 4 business days.
+- Instant Wallet Credit: If you do not wish to wait for bank reversal, contact chat support to convert the failed transaction into instant BiteDash Wallet Money with an extra 5% bonus credit.
+
+2. Cash on Delivery (COD) & Change Rules
+- COD Limit: Maximum allowable COD order value is ₹1,000.
+- Delivery Partner Change: Delivery riders carry a maximum change of ₹200. Customers paying cash with ₹500 notes must inform the delivery rider via call/in-app message beforehand.
+
+3. GST Invoices & B2B Claims
+- GST Invoices: Tax invoices are automatically sent to the registered email address within 10 minutes of order completion.
+- B2B GSTIN Entry: To claim input tax credit (ITC), customers must enter their 15-digit GSTIN number at the checkout screen. GST details cannot be added or modified once the invoice has been generated.

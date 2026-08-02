@@ -218,6 +218,7 @@ def _init():
         "tracker": sentiment.FrustrationTracker(),
         "escalated": False,
         "escalation_info": None,
+        "escalation_level_index": 0,
         "rated": False,
         "kb_loaded": False,
         "chunks": [],
@@ -304,6 +305,7 @@ with st.sidebar:
         st.session_state.tracker = sentiment.FrustrationTracker()
         st.session_state.escalated = False
         st.session_state.escalation_info = None
+        st.session_state.escalation_level_index = 0
         st.session_state.rated = False
         st.session_state.last_audio_bytes = None
         st.rerun()
@@ -417,16 +419,21 @@ if user_input:
     auto_level = st.session_state.tracker.should_auto_escalate()
     wants_human = analysis.get("wants_human", False)
 
+    # Standard escalation pathway (Sequential order: Level 1 -> Level 6)
     if (auto_level or wants_human) and not st.session_state.escalated:
+        # Determine next sequential level so every level gets a turn in order
+        next_level = min(6, st.session_state.escalation_level_index + 1)
+        st.session_state.escalation_level_index = next_level
+
         assessed = sentiment.assess_seriousness(
             st.session_state.messages, frust_score, API_KEY
         )
-        esc_level = max(auto_level or 1, assessed.get("level", 1))
+        esc_level = max(next_level, min(6, assessed.get("level", 1)))
         reason = assessed.get("reason", "Customer frustration / escalation signal")
         if wants_human:
             reason = "Customer requested human intervention. " + reason
 
-        with st.spinner("Escalating query to support team…"):
+        with st.spinner(f"Escalating query to Level {esc_level} support…"):
             esc_result = escalation.escalate(
                 st.session_state.session_id,
                 st.session_state.messages,
@@ -449,9 +456,10 @@ if user_input:
     else:
         # ── Knowledge Base Verification & RAG ──
         if not st.session_state.chunks:
-            reason = "Knowledge base empty. Query requires executive review."
+            # Rare Scenario: Knowledge gap -> Escalate to Business Director (Level 7) and Founder (Level 8)
+            reason = "Rare scenario: Knowledge base empty. Escalate to Business Director & Founder."
             store.log_knowledge_gap(user_input)
-            with st.spinner("Escalating to Business Director & Founder…"):
+            with st.spinner("Rare scenario: Escalating to Business Director & Founder…"):
                 esc_result = escalation.escalate(
                     st.session_state.session_id,
                     st.session_state.messages,

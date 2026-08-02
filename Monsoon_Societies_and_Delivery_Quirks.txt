@@ -1,0 +1,12 @@
+BITEDASH - MONSOON, GATED SOCIETIES & RIDER SAFETY
+
+1. Gated Society & Security Guard Delivery
+- Society Entry Restrictions: If a gated society or apartment complex does not allow external delivery riders beyond the main gate, the delivery rider will wait at the security gate for a maximum of 10 minutes.
+- Guard Handover: Customers can authorize the rider via in-app toggle to leave the food package with the security guard. BiteDash is not responsible for missing food once handed over to security.
+
+2. Delivery OTP Verification
+- OTP Requirement: Orders valued above ₹500 or placed between 11:00 PM and 5:00 AM require a 4-digit OTP shared by the customer to the delivery rider before handing over the food.
+
+3. Monsoon, Heavy Rain & Waterlogging Policy
+- Rain Surge Fee: A temporary surcharge of ₹25 to ₹50 is added during active rainfall warnings to compensate delivery partners.
+- Extended ETA: Delivery timelines automatically extend by 30 to 45 minutes during waterlogging or heavy downpours. Delay-based compensation does NOT apply during official rain warnings.
