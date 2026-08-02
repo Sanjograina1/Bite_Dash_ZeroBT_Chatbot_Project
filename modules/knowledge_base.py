@@ -22,12 +22,114 @@ def extract_text_with_pages(file_path: str, file_type: str) -> list[dict]:
 
     if file_type == "pdf":
         pages = _extract_pdf(file_path)
-    elif file_type == "docx":
+    elif file_type in {"docx", "doc"}:
         pages = _extract_docx(file_path)
-    elif file_type == "txt":
+    else:
         pages = _extract_txt(file_path)
 
     return pages
+
+
+def extract_any_file(file_bytes: bytes, filename: str, api_key: str = "") -> str:
+    """Extract readable text content from ANY file format (PDF, DOCX, TXT, CSV, Excel, Images, Audio, Code, etc.)."""
+    ext = Path(filename).suffix.lower()
+
+    # 1. Plain text / Code / Structured Data files
+    text_exts = {
+        ".txt", ".md", ".csv", ".json", ".xml", ".html", ".py", ".js", ".ts", ".jsx", ".tsx",
+        ".css", ".log", ".yaml", ".yml", ".ini", ".cfg", ".sql", ".sh", ".rtf", ".env"
+    }
+    if ext in text_exts or not ext:
+        for enc in ["utf-8", "latin-1", "cp1252", "ascii"]:
+            try:
+                return file_bytes.decode(enc)
+            except Exception:
+                continue
+
+    # 2. PDF files
+    if ext == ".pdf":
+        try:
+            import pdfplumber
+            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+                pages_text = [p.extract_text() for p in pdf.pages if p.extract_text()]
+                if pages_text:
+                    return "\n\n".join(pages_text)
+        except Exception:
+            pass
+        try:
+            from PyPDF2 import PdfReader
+            reader = PdfReader(io.BytesIO(file_bytes))
+            pages_text = [p.extract_text() for p in reader.pages if p.extract_text()]
+            if pages_text:
+                return "\n\n".join(pages_text)
+        except Exception:
+            pass
+
+    # 3. DOCX files
+    if ext in {".docx", ".doc"}:
+        try:
+            import docx
+            doc = docx.Document(io.BytesIO(file_bytes))
+            return "\n".join([p.text for p in doc.paragraphs if p.text])
+        except Exception:
+            pass
+
+    # 4. Excel spreadsheet files (.xlsx, .xls)
+    if ext in {".xlsx", ".xls"}:
+        try:
+            import pandas as pd
+            excel_file = pd.ExcelFile(io.BytesIO(file_bytes))
+            sheets_text = []
+            for sheet_name in excel_file.sheet_names:
+                df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                sheets_text.append(f"--- Sheet: {sheet_name} ---\n" + df.to_string(index=False))
+            return "\n\n".join(sheets_text)
+        except Exception:
+            pass
+
+    # 5. Audio files (Transcribe using Whisper API)
+    if ext in {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac"}:
+        if api_key:
+            try:
+                client = OpenAI(api_key=api_key)
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1", file=(filename, file_bytes)
+                )
+                return f"[Audio Transcription of {filename}]:\n" + transcript.text
+            except Exception as e:
+                return f"[Audio File: {filename} (size: {len(file_bytes)} bytes)]"
+
+    # 6. Image files (Vision OCR analysis via GPT-4o)
+    if ext in {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}:
+        if api_key:
+            try:
+                import base64
+                client = OpenAI(api_key=api_key)
+                b64_img = base64.b64encode(file_bytes).decode("utf-8")
+                mime_type = "image/png" if ext == ".png" else "image/jpeg"
+                resp = client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": f"Extract and summarize all visible text, numbers, table data, and visual details from this image ({filename}):"},
+                            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64_img}"}}
+                        ]
+                    }],
+                    max_tokens=1500
+                )
+                return f"[Image Analysis & Vision Text Extraction of {filename}]:\n" + resp.choices[0].message.content.strip()
+            except Exception as e:
+                return f"[Image File: {filename} (size: {len(file_bytes)} bytes)]"
+
+    # 7. General fallback for any other arbitrary file type
+    for enc in ["utf-8", "latin-1"]:
+        try:
+            return file_bytes.decode(enc, errors="ignore")[:4000]
+        except Exception:
+            pass
+
+    return f"[File Attachment: {filename} ({len(file_bytes)} bytes)]"
 
 
 def _extract_pdf(path: str) -> list[dict]:

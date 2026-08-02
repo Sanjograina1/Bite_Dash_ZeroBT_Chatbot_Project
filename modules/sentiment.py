@@ -5,47 +5,55 @@ sentiment.py — Real-time frustration tracking and seriousness assessment.
 import json
 from openai import OpenAI
 
-# ── Single-Message Analysis ──────────────────────────────────────────
+# ── Single-Message Analysis ───────────────────────────────────────────
 
 def analyze_message(message: str, api_key: str) -> dict:
-    """Classify a customer message for sentiment, frustration, and escalation signals.
-    Returns dict with keys: sentiment, frustration_delta, escalation_signals, wants_human.
+    """Classify a customer message for sentiment, frustration, escalation signals, and profanity using gpt-4o.
+    Returns dict with keys: sentiment, frustration_delta, escalation_signals, wants_human, has_profanity, sanitized_summary, detailed_tone_analysis.
     """
     client = OpenAI(api_key=api_key)
     resp = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         messages=[
             {
                 "role": "system",
                 "content": (
-                    "You are a sentiment classifier for customer support messages. "
-                    "Analyze the message and return ONLY valid JSON with these keys:\n"
+                    "You are a psychological and sentiment analysis system for enterprise customer support intelligence.\n"
+                    "Analyze the user message thoroughly with deep behavioral, emotional, and linguistic profiling. Return ONLY valid JSON with these keys:\n"
                     '  "sentiment": one of "positive","neutral","negative","angry","distressed"\n'
-                    '  "frustration_delta": integer from -20 to +30 indicating how much this '
-                    "message shifts frustration (positive = more frustrated)\n"
-                    '  "escalation_signals": list of detected signals from '
-                    '["demand_human","threat","urgency","financial_risk","legal_risk","abusive_language","repeated_complaint"]\n'
+                    '  "frustration_delta": integer from -20 to +35 indicating how much this message shifts frustration (positive = more frustrated)\n'
+                    '  "escalation_signals": list of detected signals from ["demand_human","threat","urgency","financial_risk","legal_risk","abusive_language","profanity","repeated_complaint"]\n'
                     '  "wants_human": boolean, true if customer explicitly asks for a person\n'
-                    "Return ONLY the JSON object, no markdown."
+                    '  "has_profanity": boolean, true if explicit profanity, vulgarity, swearing, curse words, or unparliamentary/abusive language is detected in the message\n'
+                    '  "sanitized_summary": string, an objective, clean, polite 1-2 sentence summary of the customer\'s core grievance with ALL profanity, swearing, and offensive words completely removed/censored\n'
+                    '  "detailed_tone_analysis": exhaustive 4-5 sentence analysis of the customer\'s underlying psychological state, emotional trajectory, micro-frustration markers, implicit subtext, and potential churn risk\n'
+                    "Return ONLY valid JSON. No markdown."
                 ),
             },
             {"role": "user", "content": message},
         ],
-        temperature=0.1,
-        max_tokens=200,
+        temperature=0.2,
+        max_tokens=2000,
     )
     text = resp.choices[0].message.content.strip()
-    # Strip markdown fences if present
     if text.startswith("```"):
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0]
     try:
-        return json.loads(text)
+        data = json.loads(text)
+        if "has_profanity" not in data:
+            data["has_profanity"] = "profanity" in data.get("escalation_signals", []) or "abusive_language" in data.get("escalation_signals", [])
+        if "sanitized_summary" not in data:
+            data["sanitized_summary"] = "Customer submitted a query regarding their order/service."
+        return data
     except json.JSONDecodeError:
         return {
             "sentiment": "neutral",
             "frustration_delta": 0,
             "escalation_signals": [],
             "wants_human": False,
+            "has_profanity": False,
+            "sanitized_summary": "Customer submitted a query regarding their order/service.",
+            "detailed_tone_analysis": "Standard customer tone.",
         }
 
 
@@ -78,7 +86,6 @@ class FrustrationTracker:
 
     def should_auto_escalate(self) -> int | None:
         """Return escalation level if auto-escalation is warranted, else None."""
-        # Three consecutive negative messages
         if len(self.window) >= 3 and all(d > 5 for d in self.window[-3:]):
             if self.score >= 50:
                 return 3
@@ -103,7 +110,7 @@ class FrustrationTracker:
     @classmethod
     def from_dict(cls, d: dict) -> "FrustrationTracker":
         t = cls()
-        t.score = d.get("score", 20.0)
+        t.score = d.get("score", 0.0)
         t.history = d.get("history", [])
         t.window = t.history[-5:] if t.history else []
         return t
@@ -113,28 +120,28 @@ class FrustrationTracker:
 
 def assess_seriousness(conversation: list[dict], frustration_score: float,
                        api_key: str) -> dict:
-    """Full-context LLM assessment across 8 levels. Returns {level: 1-8, reason: str}."""
+    """Full-context LLM assessment across 8 levels using gpt-4o. Returns {level: 1-8, reason: str, comprehensive_rationale: str}."""
     client = OpenAI(api_key=api_key)
 
     transcript = "\n".join(
         f"{'Customer' if m['role']=='user' else 'Bot'}: {m['content']}"
-        for m in conversation
+        for m in conversation[-30:]
     )
 
     resp = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         messages=[
             {
                 "role": "system",
                 "content": (
-                    "You are an escalation intelligence system for ZeroBT chatbot. Analyze this customer support "
-                    "conversation and determine the seriousness level from 1 to 8.\n\n"
-                    "Consider:\n"
-                    "- Tone and language (frustrated, abusive, calm, distressed)\n"
-                    "- Explicit demands for escalation or human agent\n"
-                    "- Financial, legal, or safety implications\n"
-                    "- Conversation length without resolution\n"
-                    "- Whether issue could affect multiple customers\n\n"
+                    "You are an enterprise escalation intelligence system for ZeroBT chatbot.\n"
+                    "Analyze this full customer support conversation transcript comprehensively and determine the precise seriousness level from 1 to 8.\n\n"
+                    "Consider in deep detail:\n"
+                    "- Tone, linguistic distress markers, and emotional volatility\n"
+                    "- Explicit demands for escalation or human agent intervention\n"
+                    "- Financial, legal, regulatory, safety, or brand reputation risks\n"
+                    "- Conversation length, repeated attempts, and friction without resolution\n"
+                    "- Scope of customer impact and operational severity\n\n"
                     f"Current frustration score: {frustration_score}/100\n\n"
                     "Levels:\n"
                     "  1 = Tier 1 Support (Routine basic query)\n"
@@ -145,13 +152,13 @@ def assess_seriousness(conversation: list[dict], frustration_score: float,
                     "  6 = Support Manager (Managerial escalation / dispute)\n"
                     "  7 = Business Director (High business/financial impact or missing policy information)\n"
                     "  8 = Founder (Critical threat, executive review, total knowledge gap)\n\n"
-                    "Return ONLY JSON: {\"level\": <1-8>, \"reason\": \"<brief reason>\"}"
+                    "Return ONLY valid JSON: {\"level\": <1-8>, \"reason\": \"<brief reason>\", \"comprehensive_rationale\": \"<exhaustive multi-paragraph detailed justification analyzing risk, escalation necessity, customer impact, and strategic resolution pathways>\"}"
                 ),
             },
             {"role": "user", "content": transcript},
         ],
-        temperature=0.1,
-        max_tokens=150,
+        temperature=0.2,
+        max_tokens=2500,
     )
     text = resp.choices[0].message.content.strip()
     if text.startswith("```"):
@@ -159,5 +166,6 @@ def assess_seriousness(conversation: list[dict], frustration_score: float,
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        return {"level": 1, "reason": "Unable to assess"}
+        return {"level": 1, "reason": "Unable to assess", "comprehensive_rationale": "Standard routine query."}
+
 

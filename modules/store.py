@@ -77,6 +77,120 @@ def init_db():
     """)
     c.commit()
     c.close()
+    seed_sample_conversations()
+
+
+def seed_sample_conversations():
+    """Ensure sample chat sessions varying from Low, Medium, to High frustration are seeded into database."""
+    c = _conn()
+    existing_count = c.execute("SELECT COUNT(*) as cnt FROM conversations").fetchone()["cnt"]
+    if existing_count >= 5:
+        c.close()
+        return
+
+    sample_sessions = [
+        {
+            "id": "sess_low_01",
+            "messages": [
+                {"role": "user", "content": "Hi, can you tell me what payment methods are accepted for online orders?"},
+                {"role": "assistant", "content": "We accept UPI, Credit/Debit Cards, Net Banking, and ZeroBT Promo Cash wallet."}
+            ],
+            "frustration": [0.0, 10.0, 12.0],
+            "status": "closed"
+        },
+        {
+            "id": "sess_low_02",
+            "messages": [
+                {"role": "user", "content": "How do I check my remaining Promo Cash balance?"},
+                {"role": "assistant", "content": "You can check your balance under Profile -> Wallet & Refunds."}
+            ],
+            "frustration": [0.0, 5.0, 15.0],
+            "status": "closed"
+        },
+        {
+            "id": "sess_med_01",
+            "messages": [
+                {"role": "user", "content": "I ordered lunch 30 mins ago during heavy rain, but delivery tracker shows delayed. What is happening?"},
+                {"role": "assistant", "content": "During rain storms, delivery times may be extended up to 25 mins for rider safety. You receive a ₹30 delay voucher if delayed beyond 30 mins."}
+            ],
+            "frustration": [15.0, 35.0, 48.0],
+            "status": "active"
+        },
+        {
+            "id": "sess_med_02",
+            "messages": [
+                {"role": "user", "content": "Why was delivery fee added when I have FoodiePass subscription?"},
+                {"role": "assistant", "content": "FoodiePass free delivery applies on orders over ₹199. Let me verify your cart total."}
+            ],
+            "frustration": [20.0, 42.0, 55.0],
+            "status": "active"
+        },
+        {
+            "id": "sess_high_01",
+            "messages": [
+                {"role": "user", "content": "I placed an order worth ₹280 for a Pure-Veg meal during a heavy rain storm today. Paid via ₹50 Promo Cash and rest via UPI. Food arrived 45 mins late, safety seal tape was TORN OPEN! My FoodiePass free delivery wasn't applied and extra delivery fee was charged! Process full refund across UPI and Promo Cash right now!"},
+                {"role": "assistant", "content": "I deeply apologize for the torn safety seal and rain delay. I am escalating your ticket immediately to our Senior Support Agent and Quality team for a full refund."}
+            ],
+            "frustration": [45.0, 78.0, 92.0],
+            "status": "active"
+        },
+        {
+            "id": "sess_high_02",
+            "messages": [
+                {"role": "user", "content": "This service is completely awful! Fix my delivery fee dispute immediately and connect me to a Senior Agent or Manager!"},
+                {"role": "assistant", "content": "I have escalated your ticket to Level 5 Senior Agent and Support Manager."}
+            ],
+            "frustration": [50.0, 82.0, 88.0],
+            "status": "active"
+        }
+    ]
+
+    for s in sample_sessions:
+        c.execute(
+            "INSERT OR IGNORE INTO conversations (id, messages, frustration, status) VALUES (?, ?, ?, ?)",
+            (s["id"], json.dumps(s["messages"]), json.dumps(s["frustration"]), s["status"])
+        )
+
+    # Seed escalation queue records if empty
+    esc_count = c.execute("SELECT COUNT(*) as cnt FROM escalations").fetchone()["cnt"]
+    if esc_count == 0:
+        sample_escs = [
+            ("sess_high_01", 5, "Torn safety seal, 45-min rain delay, FoodiePass delivery fee dispute, split UPI + Promo Cash refund request", "High priority safety & billing escalation", "sanjograina50@gmail.com", 0),
+            ("sess_high_02", 6, "Customer requested Senior Agent & Manager escalation due to repeated delivery fee dispute", "Managerial dispute escalation", "sanjograina50@gmail.com", 0),
+            ("sess_med_01", 2, "Mild rain delay tracking inquiry and voucher request", "Logistics & Delivery Support", "sanjograina50@gmail.com", 1),
+            ("sess_med_02", 3, "FoodiePass free delivery fee verification dispute", "Billing & Refunds Department", "sanjograina50@gmail.com", 0)
+        ]
+        for sess_id, lvl, reason, summary, email_sent, resolved in sample_escs:
+            c.execute(
+                "INSERT INTO escalations (session_id, level, reason, summary, email_sent, resolved) VALUES (?, ?, ?, ?, ?, ?)",
+                (sess_id, lvl, reason, summary, email_sent, resolved)
+            )
+
+    # Seed CSAT ratings if empty
+    rating_count = c.execute("SELECT COUNT(*) as cnt FROM ratings").fetchone()["cnt"]
+    if rating_count == 0:
+        sample_ratings = [
+            ("sess_low_01", 5, "Fast and clear payment info!"),
+            ("sess_low_02", 5, "Helped me find wallet balance."),
+            ("sess_med_01", 3, "Delay voucher provided."),
+            ("sess_high_01", 1, "Torn safety seal and delivery fee charge!")
+        ]
+        for sess_id, stars, feedback in sample_ratings:
+            c.execute("INSERT INTO ratings (session_id, stars, feedback) VALUES (?, ?, ?)", (sess_id, stars, feedback))
+
+    # Seed knowledge gaps if empty
+    gap_count = c.execute("SELECT COUNT(*) as cnt FROM knowledge_gaps").fetchone()["cnt"]
+    if gap_count == 0:
+        sample_gaps = [
+            "Torn safety seal refund policy for split payments (UPI + Promo Cash)",
+            "FoodiePass free delivery minimum order threshold policy",
+            "Rain storm delay compensation voucher rules"
+        ]
+        for g in sample_gaps:
+            c.execute("INSERT INTO knowledge_gaps (query) VALUES (?)", (g,))
+
+    c.commit()
+    c.close()
 
 # ── Documents ────────────────────────────────────────────────────────
 
@@ -215,6 +329,30 @@ def get_active_conversations() -> list[dict]:
     ).fetchall()
     c.close()
     return [dict(r) for r in rows]
+
+
+def get_all_conversations() -> list[dict]:
+    c = _conn()
+    rows = c.execute(
+        "SELECT id, messages, frustration, status, agent_id, created_at, updated_at "
+        "FROM conversations ORDER BY updated_at DESC"
+    ).fetchall()
+    c.close()
+    res = []
+    for r in rows:
+        d = dict(r)
+        if isinstance(d.get("messages"), str):
+            try:
+                d["messages"] = json.loads(d["messages"])
+            except Exception:
+                d["messages"] = []
+        if isinstance(d.get("frustration"), str):
+            try:
+                d["frustration"] = json.loads(d["frustration"])
+            except Exception:
+                d["frustration"] = []
+        res.append(d)
+    return res
 
 
 def flag_takeover(session_id: str, agent_id: str):

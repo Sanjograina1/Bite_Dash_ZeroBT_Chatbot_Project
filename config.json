@@ -10,8 +10,9 @@
     "8": { "role": "Founder",          "email": "sanjograina50@gmail.com", "name": "Sanjog Raina (Founder)" }
   },
   "confidence_threshold": 0.6,
-  "chunk_size": 400,
-  "chunk_overlap": 80,
-  "top_k": 5,
+  "chunk_size": 500,
+  "chunk_overlap": 100,
+  "top_k": 20,
   "app_url": "http://localhost:8501"
 }
+

@@ -14,33 +14,35 @@ from modules import knowledge_base as kb
 # ── Real-Time Query Understanding ─────────────────────────────────────
 
 def understand_query(query: str, conversation: list[dict], api_key: str) -> dict:
-    """Analyze query in real-time to extract intent, expanded search query, key entities, and urgency."""
+    """Analyze query in real-time with gpt-4o to extract deep intent, 10 search query variations, entities, and urgency."""
     client = OpenAI(api_key=api_key)
 
     history_snippet = "\n".join(
-        f"{m['role']}: {m['content']}" for m in conversation[-4:]
+        f"{m['role']}: {m['content']}" for m in conversation[-15:]
     ) if conversation else "No prior history."
 
     sys_prompt = (
-        "You are an expert NLP Query Understanding Engine for enterprise customer support.\n"
-        "Analyze the user's latest query in context of the conversation and produce:\n"
-        '1. "intent": concise intent category (e.g. Policy Inquiry, Refund Request, Delivery Issue, Escalation Request, Technical Support, General Question)\n'
-        '2. "rewritten_query": an expanded, optimized search query incorporating domain keywords, policy terminology, and contextual references for vector search\n'
-        '3. "entities": list of 2-5 key entities or domain terms extracted (e.g. ["UPI", "GST Invoice", "Refund Window"])\n'
-        '4. "urgency": "Low", "Medium", or "High"\n'
-        '5. "core_topic": 2-4 word summary of the user\'s specific issue\n'
-        "Return ONLY valid JSON with these 5 keys. No markdown block."
+        "You are an advanced enterprise NLP Query Understanding & Semantic Analysis Engine for an AI Customer Support Agent.\n"
+        "Perform an exhaustive, multi-perspective semantic analysis of the customer's query within the full conversation context. Produce:\n"
+        '1. "intent": precise intent category (e.g., Policy Inquiry, Order & Shipping Support, Refund/Payment Clarification, Technical Issue, Escalation Request, General Guidance, Complaint Resolution)\n'
+        '2. "rewritten_query": an expanded, highly detailed, multi-sentence search query incorporating domain keywords, policy terminology, product synonyms, and contextual references to maximize vector retrieval recall\n'
+        '3. "query_variations": list of 10 alternative search phrasing variants for multi-angle retrieval covering technical terms, conversational phrasing, legal/policy terminology, customer sentiment phrasing, and root-cause keywords\n'
+        '4. "entities": list of 5-10 key domain entities, terms, SKU references, policy concepts, or customer identifiers extracted\n'
+        '5. "urgency": "Low", "Medium", "High", or "Critical"\n'
+        '6. "core_topic": 2-5 word essence of the customer\'s specific problem\n'
+        '7. "semantic_breakdown": exhaustive multi-paragraph analysis of what the customer is asking for, what underlying business policies apply, customer expectations, and potential risk areas\n'
+        "Return ONLY valid JSON with these 7 keys. No markdown block."
     )
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": f"Conversation History:\n{history_snippet}\n\nLatest User Query: {query}"},
             ],
-            temperature=0.2,
-            max_tokens=250,
+            temperature=0.3,
+            max_tokens=2500,
         )
         text = resp.choices[0].message.content.strip()
         if text.startswith("```"):
@@ -50,9 +52,11 @@ def understand_query(query: str, conversation: list[dict], api_key: str) -> dict
         return {
             "intent": "General Inquiry",
             "rewritten_query": query,
+            "query_variations": [query],
             "entities": [],
             "urgency": "Medium",
             "core_topic": query[:30],
+            "semantic_breakdown": "Standard inquiry analysis.",
         }
 
 
@@ -64,70 +68,80 @@ def hybrid_search(
     vectors: np.ndarray,
     bm25,
     api_key: str,
-    top_k: int = 10,
+    top_k: int = 25,
     search_query: str = None,
+    query_variations: list[str] = None,
 ) -> list[dict]:
-    """Combine dense (cosine) + sparse (BM25) via Reciprocal Rank Fusion."""
+    """Combine dense (cosine) + sparse (BM25) via Reciprocal Rank Fusion across multi-angle queries."""
     if not chunks or vectors is None:
         return []
 
-    target_query = search_query if search_query else query
+    target_queries = [query]
+    if search_query:
+        target_queries.append(search_query)
+    if query_variations:
+        target_queries.extend(query_variations[:5])
 
-    # 1. Dense search — cosine similarity
-    qvec = kb.embed_texts([target_query], api_key)[0]
+    valid_queries = [q for q in target_queries if q and q.strip()]
+    if not valid_queries:
+        return []
+
+    qvecs = kb.embed_texts(valid_queries, api_key)
     norms = np.linalg.norm(vectors, axis=1)
-    qnorm = np.linalg.norm(qvec)
-    sims = vectors @ qvec / (norms * qnorm + 1e-10)
-    dense_ranked = list(np.argsort(sims)[::-1][:20])
 
-    # 2. Sparse search — BM25
-    tokens = kb._tokenize(target_query)
-    bm25_scores = bm25.get_scores(tokens) if bm25 else np.zeros(len(chunks))
-    sparse_ranked = list(np.argsort(bm25_scores)[::-1][:20])
-
-    # 3. Reciprocal Rank Fusion (k=60)
     rrf: dict[int, float] = {}
     k = 60
-    for rank, idx in enumerate(dense_ranked):
-        rrf[idx] = rrf.get(idx, 0) + 1.0 / (k + rank + 1)
-    for rank, idx in enumerate(sparse_ranked):
-        rrf[idx] = rrf.get(idx, 0) + 1.0 / (k + rank + 1)
+
+    for i, q_text in enumerate(valid_queries):
+        qvec = qvecs[i]
+        qnorm = np.linalg.norm(qvec)
+        sims = vectors @ qvec / (norms * qnorm + 1e-10)
+        dense_ranked = list(np.argsort(sims)[::-1][:30])
+
+        tokens = kb._tokenize(q_text)
+        bm25_scores = bm25.get_scores(tokens) if bm25 else np.zeros(len(chunks))
+        sparse_ranked = list(np.argsort(bm25_scores)[::-1][:30])
+
+        for rank, idx in enumerate(dense_ranked):
+            rrf[idx] = rrf.get(idx, 0) + 1.0 / (k + rank + 1)
+        for rank, idx in enumerate(sparse_ranked):
+            rrf[idx] = rrf.get(idx, 0) + 1.0 / (k + rank + 1)
 
     fused = sorted(rrf.keys(), key=lambda i: rrf[i], reverse=True)[:top_k]
 
     return [chunks[i] for i in fused]
 
 
-# ── Re-Ranking via LLM ──────────────────────────────────────────────
+# ── Re-Ranking via LLM (gpt-4o) ──────────────────────────────────────
 
 def rerank(query: str, candidates: list[dict], api_key: str,
-           top_n: int = 5) -> list[dict]:
-    """Use gpt-4o-mini to score relevance of each candidate 0-10."""
+           top_n: int = 15) -> list[dict]:
+    """Use gpt-4o to score relevance of each candidate with high precision and speed."""
     if len(candidates) <= top_n:
         return candidates
 
     client = OpenAI(api_key=api_key)
 
-    numbered = "\n".join(
-        f"[{i}] {c['text'][:200]}" for i, c in enumerate(candidates)
+    numbered = "\n\n".join(
+        f"[{i}] File: {c['source_file']} (Page {c['page_number']})\n{c['text'][:800]}" for i, c in enumerate(candidates[:25])
     )
 
     resp = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         messages=[
             {
                 "role": "system",
                 "content": (
-                    "You are a relevance scorer. Given a query and numbered text chunks, "
-                    "score each chunk's relevance to the query from 0 (irrelevant) to 10 (perfect). "
-                    "Return ONLY a JSON array of objects: [{\"idx\": 0, \"score\": 8}, ...] "
-                    "for ALL chunks. No markdown."
+                    "You are a high-precision enterprise document relevance scorer.\n"
+                    "Given a user query and numbered text chunks, analyze each chunk's semantic alignment to the query.\n"
+                    "For EVERY chunk, return a relevance score integer from 0 (irrelevant) to 10 (perfect match).\n"
+                    "Return ONLY a valid JSON array of objects: [{\"idx\": 0, \"score\": 9}, ...] for ALL chunks. No markdown."
                 ),
             },
-            {"role": "user", "content": f"Query: {query}\n\nChunks:\n{numbered}"},
+            {"role": "user", "content": f"Query: {query}\n\nCandidate Text Chunks:\n{numbered}"},
         ],
-        temperature=0.0,
-        max_tokens=400,
+        temperature=0.1,
+        max_tokens=1000,
     )
 
     text = resp.choices[0].message.content.strip()
@@ -142,7 +156,7 @@ def rerank(query: str, candidates: list[dict], api_key: str,
         return candidates[:top_n]
 
 
-# ── Streaming Answer Generation ──────────────────────────────────────
+# ── Streaming Answer Generation (gpt-4o) ─────────────────────────────
 
 def generate_answer_stream(
     query: str,
@@ -150,38 +164,33 @@ def generate_answer_stream(
     conversation: list[dict],
     api_key: str,
 ):
-    """Stream an answer grounded in the retrieved context.
-    Yields token strings. After exhaustion, call parse_answer_metadata()
-    on the full text to extract confidence and citations.
-    """
+    """Stream an exhaustive, deep gpt-4o answer grounded in retrieved context."""
     client = OpenAI(api_key=api_key)
 
     ctx_block = "\n\n".join(
-        f"[Source: {c['source_file']}, Page {c['page_number']}]\n{c['text']}"
+        f"[Source Document: {c['source_file']}, Page {c['page_number']}]\n{c['text']}"
         for c in context_chunks
     )
 
     system = (
-        "You are ZeroBT, an intelligent enterprise customer support chatbot. "
-        "Answer the customer's question using ONLY the provided context from uploaded business documents.\n\n"
-        "RULES:\n"
-        "1. Ground every claim strictly in the context. Never invent or guess information.\n"
-        "2. Include inline citations: mention the source file and page number "
-        '   (e.g., "According to Refund_Policy.pdf Page 3, ...").\n'
-        "3. If the context does not contain enough information or is missing details, say EXACTLY: "
+        "You are ZeroBT, an elite enterprise-grade AI customer support chatbot.\n"
+        "Provide an EXHAUSTIVE, DEEPLY DETAILED, COMPREHENSIVE, and THOUGHTFUL answer to the customer's question using ONLY the provided context from uploaded business documents.\n\n"
+        "MANDATORY ANSWER REQUIREMENTS:\n"
+        "1. GROUNDING & ACCURACY: Ground every single claim strictly in the provided context. Never invent or assume details.\n"
+        "2. INLINE CITATIONS: Cite exact source files and page numbers inline whenever presenting facts (e.g., 'According to Refund_Policy.pdf Page 3, ...').\n"
+        "3. MISSING INFORMATION HANDLING: If the context does not contain enough information or is missing details, say EXACTLY: "
         '"The policy documents do not contain the necessary information for your request. I am escalating this query to our Business Director and Founder for further review."\n'
-        "4. Provide detailed, thorough, and well-explained answers in length with complete context and clear formatting.\n"
-        "5. CUSTOMER DETAILS COLLECTION: Politely check if key customer information (Customer Name, Address/Delivery Location, Order Number or SKU details depending on query) has been provided in the conversation. If any of these are missing, warmly ask the customer for these details so you can personalize their support record.\n"
-        "6. OPEN-ENDED & ENGAGING CONVERSATION: NEVER end your response with a closed statement. ALWAYS conclude with an inviting, open-ended follow-up question or proactive topic offer (e.g., 'What else can I clarify for you regarding our delivery or return policies?') to encourage the customer to ask more questions and spend more time chatting with us for a delightful experience.\n"
+        "4. EXHAUSTIVE DETAIL & THOUGHTFULNESS: Provide an in-depth, thorough response in length. Explain the background context, step-by-step operational procedures, eligibility criteria, policy rules, fees, timelines, exceptions, edge cases, and key takeaways with clear markdown formatting (headers, bold text, bullet points, numbered lists, comparative summary tables).\n"
+        "5. CUSTOMER INFORMATION COLLECTION: Politely check if key customer information (Customer Name, Address/Delivery Location, Order Number, Phone, or SKU details depending on query) has been provided in the conversation history. If missing, warmly ask the customer for these details so you can personalize their support record.\n"
+        "6. OPEN-ENDED & ENGAGING CONVERSATION: NEVER end your response with a closed statement. ALWAYS conclude with an inviting, open-ended follow-up question or proactive topic offer (e.g., 'What else can I clarify for you regarding our delivery schedules, payment options, or return policies?') to encourage the customer to ask more questions and spend more time chatting with us for a delightful experience.\n"
         "7. At the VERY END of your response, on a new line, add a metadata line:\n"
         '   <!--META:{"confidence":<0.0-1.0>,"sources":[{"file":"...","page":N},...]}-->\n'
         "   Set confidence to 0.0 if information is missing from documents.\n\n"
-        f"CONTEXT:\n{ctx_block}"
+        f"CONTEXT DOCUMENTS:\n{ctx_block}"
     )
 
     messages = [{"role": "system", "content": system}]
-    # Include last few conversation turns for continuity
-    for msg in conversation[-6:]:
+    for msg in conversation[-20:]:
         messages.append({"role": msg["role"], "content": msg["content"]})
     messages.append({"role": "user", "content": query})
 
@@ -189,14 +198,14 @@ def generate_answer_stream(
         model="gpt-4o",
         messages=messages,
         temperature=0.3,
-        max_tokens=800,
+        max_tokens=4096,
         stream=True,
+        stream_options={"include_usage": True},
     )
 
     for chunk in stream:
-        delta = chunk.choices[0].delta.content
-        if delta:
-            yield delta
+        if chunk.choices and chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
 
 
 def parse_answer_metadata(full_text: str) -> dict:
@@ -222,7 +231,7 @@ def parse_answer_metadata(full_text: str) -> dict:
 # ── Full RAG Pipeline (non-streaming, for evaluation) ───────────────
 
 def query_rag(query: str, chunks, vectors, bm25, api_key: str,
-              conversation: list[dict] = None, top_k: int = 5) -> dict:
+              conversation: list[dict] = None, top_k: int = 15) -> dict:
     """Non-streaming version that returns the full answer + metadata."""
     candidates = hybrid_search(query, chunks, vectors, bm25, api_key, top_k * 2)
     reranked = rerank(query, candidates, api_key, top_k)
@@ -235,22 +244,23 @@ def query_rag(query: str, chunks, vectors, bm25, api_key: str,
     )
 
     system = (
-        "You are a helpful customer support chatbot. Answer ONLY from the context.\n"
-        "Include source citations (file and page). If unsure, say so.\n"
+        "You are an enterprise AI customer support chatbot. Provide an exhaustive, grounded answer strictly using the provided context.\n"
+        "Include exact source citations (file and page number) inline.\n"
         "At the end, add: <!--META:{\"confidence\":<0-1>,\"sources\":[...]}-->\n\n"
         f"CONTEXT:\n{ctx_block}"
     )
 
     messages = [{"role": "system", "content": system}]
     if conversation:
-        for m in conversation[-4:]:
+        for m in conversation[-15:]:
             messages.append({"role": m["role"], "content": m["content"]})
     messages.append({"role": "user", "content": query})
 
     resp = client.chat.completions.create(
-        model="gpt-4o", messages=messages, temperature=0.3, max_tokens=800
+        model="gpt-4o", messages=messages, temperature=0.3, max_tokens=3000
     )
     full = resp.choices[0].message.content.strip()
     meta = parse_answer_metadata(full)
     meta["context_chunks"] = reranked
     return meta
+

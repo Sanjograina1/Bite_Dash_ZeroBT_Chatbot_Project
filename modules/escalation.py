@@ -39,22 +39,23 @@ def generate_escalation_summary(conversation: list[dict], level: int, api_key: s
     is_executive = level >= 7
 
     sys_prompt = (
-        "Analyze this customer support conversation and produce:\n"
-        '1. "summary": 2-3 sentence problem summary\n'
-        '2. "suggested_reply": a ready-to-send professional reply template for the support team/executive\n'
-        '3. "key_facts": list of key facts (customer name if known, order number, core issue)\n'
-        '4. "executive_brief": if executive level, a completely sanitized, formal, objective, and professional summary filtering out any profanity, insults, or raw aggression into constructive business language.\n'
-        "Return ONLY JSON with these four keys. No markdown."
+        "You are an enterprise escalation dossier engine for ZeroBT executive leadership.\n"
+        "Analyze this full customer support conversation transcript and generate an exhaustive, multi-section dossier:\n"
+        '1. "summary": comprehensive multi-paragraph operational breakdown covering the customer\'s core grievance, root causes, timeline of events, friction points, and financial/policy impact.\n'
+        '2. "suggested_reply": an exhaustive, highly empathetic, professional, ready-to-send resolution email template for the support team or executive containing personalized customer greetings, policy explanation, action steps, compensation/waiver proposals, and direct contact details.\n'
+        '3. "key_facts": comprehensive list of 5-10 key facts (customer name, contact, delivery location, order/SKU details, financial risk, legal mentions, frustration score, policy clauses involved).\n'
+        '4. "executive_brief": an exhaustive, formal, objective executive briefing filtering out any profanity or raw aggression into constructive, high-level business intelligence, strategic risk analysis, brand impact, and policy recommendation.\n'
+        "Return ONLY valid JSON with these four keys. No markdown block."
     )
 
     resp = client.chat.completions.create(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": sys_prompt},
-            {"role": "user", "content": f"Level: {level}\nTranscript:\n{transcript}"},
+            {"role": "user", "content": f"Escalation Level: {level}\nTranscript:\n{transcript}"},
         ],
         temperature=0.3,
-        max_tokens=600,
+        max_tokens=2500,
     )
 
     text = resp.choices[0].message.content.strip()

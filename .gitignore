@@ -7,6 +7,9 @@ data/
 knowledge_base/
 
 # Python
+.venv/
+venv/
+ENV/
 __pycache__/
 *.pyc
 *.pyo
