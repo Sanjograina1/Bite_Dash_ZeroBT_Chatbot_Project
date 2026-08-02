@@ -122,7 +122,7 @@ def generate_answer_stream(
         '   (e.g., "According to Refund_Policy.pdf Page 3, ...").\n'
         "3. If the context does not contain enough information or is missing details, say EXACTLY: "
         '"The policy documents do not contain the necessary information for your request. I am escalating this query to our Business Director and Founder for further review."\n'
-        "4. Be concise, professional, empathetic, and direct.\n"
+        "4. Provide detailed, thorough, and well-explained answers in length with complete context and clear formatting so the customer receives a comprehensive response.\n"
         "5. At the VERY END of your response, on a new line, add a metadata line:\n"
         '   <!--META:{"confidence":<0.0-1.0>,"sources":[{"file":"...","page":N},...]}-->\n'
         "   Set confidence to 0.0 if information is missing from documents.\n\n"

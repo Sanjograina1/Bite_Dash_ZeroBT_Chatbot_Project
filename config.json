@@ -1,13 +1,13 @@
 {
   "escalation_hierarchy": {
-    "1": { "role": "Tier 1 Support",   "email": "pratimachavan10@gmail.com", "name": "Pratima Chavan" },
-    "2": { "role": "Tier 2 Support",   "email": "vlogsdkh3@gmail.com",       "name": "Support Tier 2" },
-    "3": { "role": "Tier 3 Support",   "email": "babbilwarnateshi@gmail.com","name": "Nateshi Babbilwar" },
-    "4": { "role": "Tier 4 Support",   "email": "aartijc4@gmail.com",        "name": "Aarti JC" },
-    "5": { "role": "Senior Agent",     "email": "kanojiashivi04@gmail.com",  "name": "Shivi Kanojia" },
-    "6": { "role": "Support Manager",  "email": "adityainsync123@gmail.com", "name": "Aditya C" },
-    "7": { "role": "Business Director","email": "pranavsinghal77@gmail.com", "name": "Pranav Singhal" },
-    "8": { "role": "Founder",          "email": "sanjograina50@gmail.com",   "name": "Sanjog Raina" }
+    "1": { "role": "Tier 1 Support",   "email": "sanjograina50@gmail.com", "name": "Pratima Chavan (Tier 1)" },
+    "2": { "role": "Tier 2 Support",   "email": "sanjograina50@gmail.com", "name": "Support Tier 2" },
+    "3": { "role": "Tier 3 Support",   "email": "sanjograina50@gmail.com", "name": "Nateshi Babbilwar (Tier 3)" },
+    "4": { "role": "Tier 4 Support",   "email": "sanjograina50@gmail.com", "name": "Aarti JC (Tier 4)" },
+    "5": { "role": "Senior Agent",     "email": "sanjograina50@gmail.com", "name": "Shivi Kanojia (Senior Agent)" },
+    "6": { "role": "Support Manager",  "email": "sanjograina50@gmail.com", "name": "Aditya C (Support Manager)" },
+    "7": { "role": "Business Director","email": "sanjograina50@gmail.com", "name": "Pranav Singhal (Business Director)" },
+    "8": { "role": "Founder",          "email": "sanjograina50@gmail.com", "name": "Sanjog Raina (Founder)" }
   },
   "confidence_threshold": 0.6,
   "chunk_size": 400,

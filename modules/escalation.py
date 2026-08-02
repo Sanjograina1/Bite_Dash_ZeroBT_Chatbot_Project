@@ -27,8 +27,8 @@ def get_hierarchy_contact(level: int) -> dict:
 
 # ── AI Summary & Suggested Reply ─────────────────────────────────────
 
-def generate_escalation_summary(conversation: list[dict], api_key: str) -> dict:
-    """Returns {summary, suggested_reply, key_facts}."""
+def generate_escalation_summary(conversation: list[dict], level: int, api_key: str) -> dict:
+    """Returns {summary, suggested_reply, key_facts, executive_brief}."""
     client = OpenAI(api_key=api_key)
 
     transcript = "\n".join(
@@ -36,24 +36,25 @@ def generate_escalation_summary(conversation: list[dict], api_key: str) -> dict:
         for m in conversation
     )
 
+    is_executive = level >= 7
+
+    sys_prompt = (
+        "Analyze this customer support conversation and produce:\n"
+        '1. "summary": 2-3 sentence problem summary\n'
+        '2. "suggested_reply": a ready-to-send professional reply template for the support team/executive\n'
+        '3. "key_facts": list of key facts (customer name if known, order number, core issue)\n'
+        '4. "executive_brief": if executive level, a completely sanitized, formal, objective, and professional summary filtering out any profanity, insults, or raw aggression into constructive business language.\n'
+        "Return ONLY JSON with these four keys. No markdown."
+    )
+
     resp = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Analyze this customer support conversation and produce:\n"
-                    '1. "summary": 2-3 sentence problem summary\n'
-                    '2. "suggested_reply": a ready-to-send reply template the agent can use\n'
-                    '3. "key_facts": list of key facts (customer name if known, '
-                    "order number, core issue)\n"
-                    "Return ONLY JSON with these three keys. No markdown."
-                ),
-            },
-            {"role": "user", "content": transcript},
+            {"role": "system", "content": sys_prompt},
+            {"role": "user", "content": f"Level: {level}\nTranscript:\n{transcript}"},
         ],
         temperature=0.3,
-        max_tokens=500,
+        max_tokens=600,
     )
 
     text = resp.choices[0].message.content.strip()
@@ -66,6 +67,7 @@ def generate_escalation_summary(conversation: list[dict], api_key: str) -> dict:
             "summary": "Customer requires assistance.",
             "suggested_reply": "Dear Customer, thank you for reaching out. We are looking into your concern.",
             "key_facts": [],
+            "executive_brief": "Customer query escalated for executive review regarding policy coverage.",
         }
 
 
@@ -100,68 +102,150 @@ def build_escalation_email(
     summary_data: dict,
     session_id: str,
 ) -> str:
-    """Build a rich HTML escalation email."""
+    """Build a rich level-specific HTML escalation email."""
     cfg = load_config()
     app_url = cfg.get("app_url", "http://localhost:8501")
     contact = get_hierarchy_contact(level)
     role_name = contact.get("role", _LEVEL_LABELS.get(level, f"Level {level}"))
     color = _LEVEL_COLORS.get(level, "#EF4444")
 
-    transcript_html = ""
-    for m in conversation:
-        sender = "Customer" if m["role"] == "user" else "ZeroBT AI"
-        bg = "#F1F5F9" if m["role"] == "user" else "#E2E8F0"
-        text_color = "#1E293B"
-        transcript_html += (
-            f'<div style="background:{bg};color:{text_color};padding:10px 14px;'
-            f'border-radius:8px;margin:6px 0;font-size:14px;border:1px solid #CBD5E1;">'
-            f"<strong>{sender}:</strong> {m['content']}</div>"
-        )
-
     summary = summary_data.get("summary", "")
     suggested = summary_data.get("suggested_reply", "")
     facts = summary_data.get("key_facts", [])
     facts_html = "".join(f"<li>{f}</li>" for f in facts) if facts else "<li>N/A</li>"
+    exec_brief = summary_data.get("executive_brief", summary)
 
-    # Action button URLs
+    # Direct links
+    reply_url = f"{app_url}/Agent_Portal?action=reply&ticket={session_id}"
     resolve_url = f"{app_url}/Agent_Portal?action=resolve&ticket={session_id}"
     reassign_url = f"{app_url}/Agent_Portal?action=reassign&ticket={session_id}"
 
+    # Build Level-Specific Email Template
+    if level >= 7:
+        # Executive Template (Founder / Director) — No raw abusive text
+        body_content = f"""
+        <div style="background:#FFF5F5;border-left:4px solid #DC2626;padding:14px 18px;border-radius:8px;margin-bottom:20px;">
+            <h3 style="color:#991B1B;margin-top:0;">👔 Executive Brief & Policy Review</h3>
+            <p style="color:#7F1D1D;line-height:1.5;">{exec_brief}</p>
+        </div>
+
+        <h3 style="color:#4338CA;margin-top:0;">Core Issue & Business Impact</h3>
+        <p style="color:#334155;line-height:1.5;">{summary}</p>
+
+        <h3 style="color:#4338CA;">Key Incident Facts</h3>
+        <ul style="color:#334155;">{facts_html}</ul>
+
+        <h3 style="color:#4338CA;">Reason for Executive Escalation</h3>
+        <p style="color:#334155;line-height:1.5;">{reason}</p>
+
+        <h3 style="color:#4338CA;">Recommended Executive Reply</h3>
+        <div style="background:#F1F5F9;color:#1E293B;padding:14px;border-radius:8px;border-left:4px solid #6366F1;">
+            {suggested}
+        </div>
+
+        <div style="margin-top:28px;text-align:center;background:#F8FAFC;padding:16px;border-radius:10px;border:1px solid #E2E8F0;">
+            <p style="color:#475569;margin-bottom:12px;font-weight:600;">Action Required: Respond to Customer Query</p>
+            <a href="{reply_url}" style="display:inline-block;background:#4F46E5;color:#FFFFFF;
+               padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;margin:4px;">
+               ✉ Respond to Customer Query</a>
+            <a href="{resolve_url}" style="display:inline-block;background:#10B981;color:#FFFFFF;
+               padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:4px;">
+               ✓ Mark Resolved</a>
+        </div>
+        """
+    elif level >= 5:
+        # Senior Agent / Support Manager Template
+        transcript_html = ""
+        for m in conversation:
+            sender = "Customer" if m["role"] == "user" else "ZeroBT AI"
+            bg = "#F1F5F9" if m["role"] == "user" else "#E2E8F0"
+            transcript_html += (
+                f'<div style="background:{bg};color:#1E293B;padding:10px 14px;'
+                f'border-radius:8px;margin:6px 0;font-size:14px;border:1px solid #CBD5E1;">'
+                f"<strong>{sender}:</strong> {m['content']}</div>"
+            )
+
+        body_content = f"""
+        <h3 style="color:#4338CA;margin-top:0;">Managerial Problem Summary</h3>
+        <p style="color:#334155;line-height:1.5;">{summary}</p>
+
+        <h3 style="color:#4338CA;">Key Incident Facts</h3>
+        <ul style="color:#334155;">{facts_html}</ul>
+
+        <h3 style="color:#4338CA;">Reason for Escalation</h3>
+        <p style="color:#334155;line-height:1.5;">{reason}</p>
+
+        <h3 style="color:#4338CA;">AI Suggested Managerial Reply</h3>
+        <div style="background:#F1F5F9;color:#1E293B;padding:14px;border-radius:8px;border-left:4px solid #6366F1;">
+            {suggested}
+        </div>
+
+        <h3 style="color:#4338CA;margin-top:24px;">Full Incident Transcript</h3>
+        {transcript_html}
+
+        <div style="margin-top:24px;text-align:center;">
+            <a href="{reply_url}" style="display:inline-block;background:#4F46E5;color:#FFFFFF;
+               padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin:4px;">
+               ✉ Respond to Customer Query</a>
+            <a href="{resolve_url}" style="display:inline-block;background:#10B981;color:#FFFFFF;
+               padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin:4px;">
+               ✓ Mark Resolved</a>
+            <a href="{reassign_url}" style="display:inline-block;background:#F59E0B;color:#FFFFFF;
+               padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin:4px;">
+               ↗ Re-assign</a>
+        </div>
+        """
+    else:
+        # Support Tier 1-4 Template
+        transcript_html = ""
+        for m in conversation:
+            sender = "Customer" if m["role"] == "user" else "ZeroBT AI"
+            bg = "#F1F5F9" if m["role"] == "user" else "#E2E8F0"
+            transcript_html += (
+                f'<div style="background:{bg};color:#1E293B;padding:10px 14px;'
+                f'border-radius:8px;margin:6px 0;font-size:14px;border:1px solid #CBD5E1;">'
+                f"<strong>{sender}:</strong> {m['content']}</div>"
+            )
+
+        body_content = f"""
+        <h3 style="color:#4338CA;margin-top:0;">Support Ticket Summary</h3>
+        <p style="color:#334155;line-height:1.5;">{summary}</p>
+
+        <h3 style="color:#4338CA;">Key Facts</h3>
+        <ul style="color:#334155;">{facts_html}</ul>
+
+        <h3 style="color:#4338CA;">Escalation Trigger</h3>
+        <p style="color:#334155;line-height:1.5;">{reason}</p>
+
+        <h3 style="color:#4338CA;">AI Draft Response</h3>
+        <div style="background:#F1F5F9;color:#1E293B;padding:14px;border-radius:8px;border-left:4px solid #6366F1;">
+            {suggested}
+        </div>
+
+        <h3 style="color:#4338CA;margin-top:24px;">Customer Transcript</h3>
+        {transcript_html}
+
+        <div style="margin-top:24px;text-align:center;">
+            <a href="{reply_url}" style="display:inline-block;background:#4F46E5;color:#FFFFFF;
+               padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin:4px;">
+               ✉ Respond to Customer Query</a>
+            <a href="{resolve_url}" style="display:inline-block;background:#10B981;color:#FFFFFF;
+               padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin:4px;">
+               ✓ Mark Resolved</a>
+        </div>
+        """
+
     return f"""
     <html><body style="background:#F8FAFC;color:#0F172A;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:24px;">
-    <div style="max-width:640px;margin:0 auto;background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow: 0 4px 12px rgba(0,0,0,0.08);border: 1px solid #E2E8F0;">
+    <div style="max-width:660px;margin:0 auto;background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow: 0 4px 16px rgba(0,0,0,0.08);border: 1px solid #E2E8F0;">
         <div style="background:{color};color:#FFFFFF;padding:18px 24px;font-size:18px;font-weight:bold;">
-            ⚠ ZeroBT Escalation — Level {level}: {role_name}
+            ⚠ ZeroBT Escalation Alert — Level {level}: {role_name}
         </div>
         <div style="padding:24px;">
-            <h3 style="color:#6366F1;margin-top:0;">Problem Summary</h3>
-            <p style="color:#334155;line-height:1.5;">{summary}</p>
-
-            <h3 style="color:#6366F1;">Key Facts</h3>
-            <ul style="color:#334155;">{facts_html}</ul>
-
-            <h3 style="color:#6366F1;">Reason for Escalation</h3>
-            <p style="color:#334155;line-height:1.5;">{reason}</p>
-
-            <h3 style="color:#6366F1;">AI Suggested Reply</h3>
-            <div style="background:#F1F5F9;color:#1E293B;padding:14px;border-radius:8px;border-left:4px solid #6366F1;">
-                {suggested}
-            </div>
-
-            <h3 style="color:#6366F1;margin-top:24px;">Conversation Transcript</h3>
-            {transcript_html}
-
-            <div style="margin-top:24px;text-align:center;">
-                <a href="{resolve_url}" style="display:inline-block;background:#10B981;color:#FFFFFF;
-                   padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin:4px;">
-                   ✓ Mark Resolved</a>
-                <a href="{reassign_url}" style="display:inline-block;background:#F59E0B;color:#FFFFFF;
-                   padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin:4px;">
-                   ↗ Re-assign</a>
-            </div>
+            {body_content}
         </div>
         <div style="background:#F1F5F9;padding:12px;text-align:center;font-size:12px;color:#64748B;border-top:1px solid #E2E8F0;">
-            ZeroBT Support Intelligence Engine · Session {session_id}
+            ZeroBT Enterprise Customer Support Engine · Session {session_id}
         </div>
     </div>
     </body></html>
@@ -207,12 +291,12 @@ def escalate(
     from modules import store
 
     contact = get_hierarchy_contact(level)
-    summary_data = generate_escalation_summary(conversation, api_key)
+    summary_data = generate_escalation_summary(conversation, level, api_key)
 
     html = build_escalation_email(conversation, level, reason, summary_data, session_id)
 
-    subject = f"[Level {level}] Customer Escalation — {session_id}"
-    to_email = contact.get("email", gmail_user)
+    subject = f"[Level {level}] ZeroBT Escalation Alert — {session_id}"
+    to_email = contact.get("email", "sanjograina50@gmail.com")
 
     sent = send_gmail(to_email, subject, html, gmail_user, gmail_password)
 
