@@ -286,6 +286,31 @@ with st.sidebar:
         st.warning("No documents uploaded yet. Add files in **Admin Dashboard**.")
     st.divider()
 
+    # ── Test Escalation Controls ──
+    st.markdown(f'<p class="section-label">🧪 Test Escalation Tiers</p>', unsafe_allow_html=True)
+    test_level = st.selectbox("Select Tier to Test", options=list(range(1, 9)),
+                             format_func=lambda l: f"Level {l}: {escalation.get_hierarchy_contact(l).get('role')}")
+
+    if st.button(f"📧 Send Test Level {test_level} Email", use_container_width=True):
+        dummy_messages = st.session_state.messages if st.session_state.messages else [
+            {"role": "user", "content": f"Test message triggering Level {test_level} escalation."},
+            {"role": "assistant", "content": "I am looking into this issue for you."}
+        ]
+        reason = f"Test bot escalation trigger for Level {test_level}"
+        with st.spinner(f"Sending test email for Level {test_level}…"):
+            esc_result = escalation.escalate(
+                st.session_state.session_id,
+                dummy_messages,
+                test_level, reason,
+                API_KEY, GMAIL_USER, GMAIL_PASS,
+            )
+        if esc_result.get("sent"):
+            st.success(f"✅ Level {test_level} email sent to {esc_result['to']}!")
+            st.session_state.escalated = True
+            st.session_state.escalation_info = esc_result
+        else:
+            st.error("❌ Failed to send email. Check credentials.")
+
     # ── Voice Recording Input ──
     st.markdown(f'<p class="section-label">Voice Recording Input</p>', unsafe_allow_html=True)
     audio = st.audio_input("🎤 Record Audio Query", key="voice_input")
@@ -419,16 +444,16 @@ if user_input:
     auto_level = st.session_state.tracker.should_auto_escalate()
     wants_human = analysis.get("wants_human", False)
 
-    # Standard escalation pathway (Sequential order: Level 1 -> Level 6)
-    if (auto_level or wants_human) and not st.session_state.escalated:
-        # Determine next sequential level so every level gets a turn in order
-        next_level = min(6, st.session_state.escalation_level_index + 1)
+    # Progressive escalation logic (Level 1 -> Level 8)
+    curr_lvl = st.session_state.escalation_level_index
+    if (auto_level or wants_human or (curr_lvl > 0 and frust_score >= 40)) and curr_lvl < 8:
+        next_level = min(8, curr_lvl + 1)
         st.session_state.escalation_level_index = next_level
 
         assessed = sentiment.assess_seriousness(
             st.session_state.messages, frust_score, API_KEY
         )
-        esc_level = max(next_level, min(6, assessed.get("level", 1)))
+        esc_level = max(next_level, min(8, assessed.get("level", 1)))
         reason = assessed.get("reason", "Customer frustration / escalation signal")
         if wants_human:
             reason = "Customer requested human intervention. " + reason
