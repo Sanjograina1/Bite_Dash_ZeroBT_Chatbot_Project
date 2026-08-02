@@ -1,7 +1,7 @@
 """
 ZeroBT AI Support Chatbot — Main Chat Interface
 ==================================================
-Glassmorphism Theme · Streaming RAG · gTTS Voice Output · Frustration Tracking · Gmail Escalation (8 Levels)
+Glassmorphism Theme · Streaming RAG · Interactive Consent Escalation · gTTS Voice Output
 Run:  streamlit run app.py
 """
 
@@ -153,19 +153,6 @@ button[data-testid="stBaseButton-primary"]:hover {
     box-shadow: 0 8px 24px rgba(79, 70, 229, 0.35) !important;
 }
 
-/* ── Glass Audio Toolbar ── */
-.audio-toolbar {
-    background: rgba(255, 255, 255, 0.6) !important;
-    backdrop-filter: blur(12px) !important;
-    border: 1px solid rgba(226, 232, 240, 0.8) !important;
-    border-radius: 12px;
-    padding: 10px 16px;
-    margin-bottom: 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
 /* ── Expanders ── */
 [data-testid="stExpander"] {
     background: rgba(255, 255, 255, 0.7) !important;
@@ -219,6 +206,7 @@ def _init():
         "escalated": False,
         "escalation_info": None,
         "escalation_level_index": 0,
+        "pending_escalation": None,
         "rated": False,
         "kb_loaded": False,
         "chunks": [],
@@ -331,6 +319,7 @@ with st.sidebar:
         st.session_state.escalated = False
         st.session_state.escalation_info = None
         st.session_state.escalation_level_index = 0
+        st.session_state.pending_escalation = None
         st.session_state.rated = False
         st.session_state.last_audio_bytes = None
         st.rerun()
@@ -437,14 +426,56 @@ if user_input:
     with st.chat_message("user", avatar="👤"):
         st.markdown(user_input)
 
+    user_lower = user_input.strip().lower()
+    is_agree = any(w in user_lower for w in ["yes", "yep", "yeah", "sure", "please", "ok", "escalate", "agree"])
+    is_decline = any(w in user_lower for w in ["no", "nope", "don't", "cancel", "fine", "nevermind"])
+
+    # ── Handle response to a pending escalation consent offer ──
+    if st.session_state.pending_escalation is not None:
+        pending = st.session_state.pending_escalation
+        st.session_state.pending_escalation = None
+
+        if is_agree and not is_decline:
+            esc_level = pending.get("level", 1)
+            reason = pending.get("reason", "Customer agreed to escalation")
+            with st.spinner(f"Escalating query to Level {esc_level} support…"):
+                esc_result = escalation.escalate(
+                    st.session_state.session_id,
+                    st.session_state.messages,
+                    esc_level, reason,
+                    API_KEY, GMAIL_USER, GMAIL_PASS,
+                )
+            st.session_state.escalated = True
+            st.session_state.escalation_info = esc_result
+
+            bot_msg = (
+                f"Thank you for confirming. I have escalated your ticket to "
+                f"**{esc_result['contact'].get('name', 'our team')}** "
+                f"({esc_result['contact'].get('role', 'Support')}) via email for further review. "
+                f"Reference Ticket ID: `{st.session_state.session_id}`.\n\n"
+                f"How else can I help you today?"
+            )
+            st.session_state.messages.append({"role": "assistant", "content": bot_msg, "sources": []})
+            with st.chat_message("assistant", avatar="🤖"):
+                st.markdown(bot_msg)
+            store.save_conversation(st.session_state.session_id, st.session_state.messages, st.session_state.tracker.history)
+            st.rerun()
+
+        elif is_decline:
+            bot_msg = "Understood! I will not escalate this ticket. How else can I help you today?"
+            st.session_state.messages.append({"role": "assistant", "content": bot_msg, "sources": []})
+            with st.chat_message("assistant", avatar="🤖"):
+                st.markdown(bot_msg)
+            store.save_conversation(st.session_state.session_id, st.session_state.messages, st.session_state.tracker.history)
+            st.rerun()
+
     # ── Sentiment analysis ──
     analysis = sentiment.analyze_message(user_input, API_KEY)
     frust_score = st.session_state.tracker.update(analysis)
-
     auto_level = st.session_state.tracker.should_auto_escalate()
     wants_human = analysis.get("wants_human", False)
 
-    # Escalate BEFORE answering ONLY if customer explicitly requested human or frustration is genuinely high (score >= 60)
+    # ── Check if customer requested human or frustration is high ──
     if wants_human or auto_level is not None:
         curr_lvl = st.session_state.escalation_level_index
         next_level = min(6, curr_lvl + 1)
@@ -454,49 +485,32 @@ if user_input:
             st.session_state.messages, frust_score, API_KEY
         )
         esc_level = max(next_level, min(6, assessed.get("level", 1)))
-        reason = assessed.get("reason", "Customer frustration / escalation signal")
-        if wants_human:
-            reason = "Customer explicitly requested human intervention. " + reason
+        contact = escalation.get_hierarchy_contact(esc_level)
 
-        with st.spinner(f"Escalating query to Level {esc_level} support…"):
-            esc_result = escalation.escalate(
-                st.session_state.session_id,
-                st.session_state.messages,
-                esc_level, reason,
-                API_KEY, GMAIL_USER, GMAIL_PASS,
-            )
-        st.session_state.escalated = True
-        st.session_state.escalation_info = esc_result
+        st.session_state.pending_escalation = {
+            "level": esc_level,
+            "reason": "Customer requested human intervention" if wants_human else "High frustration signal detected",
+        }
 
         bot_msg = (
-            f"I hear you. I have escalated your issue to "
-            f"**{esc_result['contact'].get('name', 'our team')}** "
-            f"({esc_result['contact'].get('role', 'Support')}) via email for immediate assistance. "
-            f"Reference Ticket ID: `{st.session_state.session_id}`."
+            f"I notice this issue might benefit from specialized attention from "
+            f"**{contact.get('name', 'our support team')}** ({contact.get('role', 'Support Tier')}).\n\n"
+            f"Would you like me to escalate this ticket to our support team for further review?\n"
+            f"*(Reply **Yes** to confirm escalation, or **No** to continue chatting with me)*"
         )
         st.session_state.messages.append({"role": "assistant", "content": bot_msg, "sources": []})
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(bot_msg)
 
     else:
-        # ── Knowledge Base Verification & RAG ──
+        # ── RAG Answer Generation ──
         if not st.session_state.chunks:
-            # Rare Scenario: Knowledge gap -> Escalate to Business Director (Level 7) and Founder (Level 8)
-            reason = "Rare scenario: Knowledge base empty. Escalate to Business Director & Founder."
             store.log_knowledge_gap(user_input)
-            with st.spinner("Rare scenario: Escalating to Business Director & Founder…"):
-                esc_result = escalation.escalate(
-                    st.session_state.session_id,
-                    st.session_state.messages,
-                    7, reason,
-                    API_KEY, GMAIL_USER, GMAIL_PASS,
-                )
-            st.session_state.escalated = True
-            st.session_state.escalation_info = esc_result
-
+            st.session_state.pending_escalation = {"level": 7, "reason": "Knowledge base empty"}
             bot_msg = (
-                "The policy documents do not contain the necessary information for your request. "
-                "I am escalating this query to our Business Director and Founder for further review."
+                "The policy documents do not contain the necessary information for your request.\n\n"
+                "Would you like me to escalate this query to our Business Director and Founder for further review?\n"
+                "*(Reply **Yes** to confirm escalation, or **No** to continue chatting with me)*"
             )
             st.session_state.messages.append({"role": "assistant", "content": bot_msg, "sources": []})
             with st.chat_message("assistant", avatar="🤖"):
@@ -525,15 +539,17 @@ if user_input:
 
                 missing_info_phrase = "policy documents do not contain the necessary information"
                 if missing_info_phrase.lower() in clean_text.lower() or confidence < CONFIG.get("confidence_threshold", 0.6):
+                    store.log_knowledge_gap(user_input)
+                    st.session_state.pending_escalation = {"level": 7, "reason": "Missing policy document information"}
                     clean_text = (
-                        "The policy documents do not contain the necessary information for your request. "
-                        "I am escalating this query to our Business Director and Founder for further review."
+                        "The policy documents do not contain the necessary information for your request.\n\n"
+                        "Would you like me to escalate this query to our Business Director and Founder for further review?\n"
+                        "*(Reply **Yes** to confirm escalation, or **No** to continue chatting with me)*"
                     )
                     confidence = 0.0
 
                 placeholder.markdown(clean_text)
 
-                # Generate TTS audio for the new answer
                 try:
                     clean_for_tts = re.sub(r"[#*`_\-]", "", clean_text)[:300]
                     tts = gTTS(text=clean_for_tts, lang="en")
@@ -554,20 +570,6 @@ if user_input:
                 "content": clean_text,
                 "sources": sources if confidence >= CONFIG.get("confidence_threshold", 0.6) else [],
             })
-
-            if confidence < CONFIG.get("confidence_threshold", 0.6) and not st.session_state.escalated:
-                store.log_knowledge_gap(user_input)
-                reason = f"Knowledge gap / policy information missing for query: '{user_input[:60]}'"
-                with st.spinner("Escalating to Business Director & Founder…"):
-                    esc_result = escalation.escalate(
-                        st.session_state.session_id,
-                        st.session_state.messages,
-                        7,
-                        reason,
-                        API_KEY, GMAIL_USER, GMAIL_PASS,
-                    )
-                st.session_state.escalated = True
-                st.session_state.escalation_info = esc_result
 
     store.save_conversation(
         st.session_state.session_id,
