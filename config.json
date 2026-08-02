@@ -1,0 +1,13 @@
+{
+  "escalation_hierarchy": {
+    "1": { "role": "Support Agent",  "email": "agent@example.com",    "name": "Alex"   },
+    "2": { "role": "Senior Agent",   "email": "senior@example.com",   "name": "Jordan" },
+    "3": { "role": "Manager",        "email": "manager@example.com",  "name": "Taylor" },
+    "4": { "role": "Director",       "email": "director@example.com", "name": "Morgan" }
+  },
+  "confidence_threshold": 0.6,
+  "chunk_size": 400,
+  "chunk_overlap": 80,
+  "top_k": 5,
+  "app_url": "http://localhost:8501"
+}

@@ -1,0 +1,29 @@
+# Secrets
+.env
+API.txt
+
+# Data (user-uploaded / auto-generated)
+data/
+knowledge_base/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Old debate project files
+Capital Punishment*.pdf
+debate-*.md
+Final Prompt.txt
+Project*.docx
