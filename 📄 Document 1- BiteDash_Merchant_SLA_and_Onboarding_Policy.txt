@@ -1,0 +1,21 @@
+BITEDASH - MERCHANT PARTNER AGREEMENT, POS INTEGRATION & HYGIENE SLA
+
+1. Merchant Commission Structure & Outlets Tiers
+- Tier 1 (Silver Partner): Standard single-outlet kitchens. Commission rate is 18% + applicable GST per fulfilled order. Onboarding fee is ₹4,999 (one-time).
+- Tier 2 (Gold Partner): Multi-outlet chains (2 to 5 outlets) or kitchens processing over 150 orders/day. Commission rate is 15% + GST. Onboarding fee is ₹2,999 per outlet.
+- Tier 3 (Platinum Partner): Regional cloud kitchen networks (6+ outlets) or kitchens processing over 500 orders/day. Commission rate is 12% + GST. Onboarding fee is 100% waived.
+- Packaging Charge Cap: Partner merchants are prohibited from charging more than ₹25 per item for packaging. Exceeding this cap results in a auto-penalty of ₹500 per flagged order.
+
+2. POS Systems & API Integration Standards
+- Direct POS Sync: BiteDash supports zero-latency API integrations with Petpooja, UrbanPiper, POSist, and DotPe. 
+- Order Acceptance Window: Kitchen Display Systems (KDS) must accept or reject incoming orders within 180 seconds. If an order is auto-rejected due to timeout 3 times in a single day, the restaurant is automatically marked "Temporarily Closed" for 4 hours.
+- Menu Item Stock Outs: Merchants must update item availability in real-time. Fulfilling an order with a substituted item without customer consent results in a 100% merchant-funded refund.
+
+3. Kitchen Quality, FSSAI & Hygiene Audit SLA
+- FSSAI License Mandatory: All merchant listings must display a valid 14-digit FSSAI registration number. Expired licenses result in instant de-listing.
+- Bi-Monthly Hygiene Audits: BiteDash conducts unannounced hygiene audits. Outlets scoring below 80/100 receive a 72-hour warning to rectify violations.
+- Pure-Veg Contamination Penalty: If a "Green Dot" pure-veg restaurant is proven to have served non-vegetarian food or cross-contaminated ingredients, BiteDash levies a strict ₹25,000 contractual penalty and suspends the merchant listing for 14 days pending a full health audit.
+
+4. Payout Cycles & Financial Settlements
+- Standard Settlement (Silver/Gold): Weekly rolling payouts processed every Thursday for orders completed between Monday to Sunday of the preceding week.
+- Express Daily Settlement (Platinum): Payouts settled daily at 6:00 AM for the previous day's orders, subject to a 0.2% payment gateway processing surcharge.

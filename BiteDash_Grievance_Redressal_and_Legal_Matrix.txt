@@ -1,0 +1,19 @@
+BITEDASH - STATUTORY GRIEVANCE REDRESSAL, LEGAL COMPLIANCE & ESCALATION SLAS
+
+1. E-Commerce Rules & Nodal Grievance Officer
+- Compliance Framework: In accordance with the Consumer Protection (Direct Selling) Rules and E-Commerce Rules 2020, BiteDash maintains a dedicated Statutory Nodal Officer.
+- Nodal Officer Details: Ms. Ananya Sharma, Senior Director of Legal & Compliance. Email: nodal.officer@bitedash.in. Address: 5th Floor, Cyber Park, Sector 44, Gurugram, Haryana - 122003.
+- Statutory SLA: Acknowledgment of formal legal complaints within 48 hours; full resolution within 1 month from the date of receipt.
+
+2. Internal Support Escalation Hierarchy & Time-to-Resolution (TTR)
+- Level 1 (Tier 1 Support): Handles general knowledge gaps, tracking delays, and simple order queries. Target TTR: < 15 minutes.
+- Level 2 (Senior Support Agent): Handles payment glitches, double-billing, minor driver disputes, and wallet credit disputes. Target TTR: < 2 hours.
+- Level 3 (Support Manager): Handles repeated order failures, severe delays (>60 mins), rude/abusive driver behavior, and large financial disputes (>₹3,000). Target TTR: < 4 hours.
+- Level 4 (Business Owner / Director): Handles food safety emergencies, physical injury/hospitalization, pure-veg religious breaches, FSSAI complaints, and legal notices. Target TTR: Immediate (< 30 minutes).
+
+3. Food Safety Emergency Protocol & Compensation Caps
+- Physical Foreign Body / Food Poisoning Protocol: When a critical health risk is reported, the automated system immediately:
+  1. Issues an apology response and alerts the Business Director (Level 4).
+  2. Places a temporary 48-hour hold on the partner merchant's listing pending an investigation.
+  3. Authorizes a full 100% order refund PLUS a goodwill medical expense voucher of up to ₹500.
+- Financial Compensation Cap: The maximum non-judicial financial liability or goodwill compensation BiteDash can issue for operational service failures is capped at ₹2,500 or 200% of the order value, whichever is lower.

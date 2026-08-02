@@ -1,0 +1,15 @@
+BITEDASH - WALLET MONEY, PROMOTIONAL CODES & FOODIEPASS TERMS
+
+1. BiteDash Wallet Architecture: Real Cash vs. Promo Cash
+- BiteDash Wallet Money (Real Cash): Refunded money from canceled or failed orders, added bank top-ups, or goodwill cash credits. Wallet Money NEVER expires and can be withdrawn back to the original bank account within 3 to 5 business days upon request.
+- BiteDash Promo Cash: Promotional bonuses, contest winnings, and referral rewards. Promo Cash expires in exactly 30 calendar days from the date of credit.
+- Usage Cap: A maximum of 20% of the total order value can be paid using Promo Cash per transaction. Real Cash Wallet Money has no transaction cap (can cover 100% of order value).
+
+2. FoodiePass Subscription & Coupon Stacking Rules
+- FoodiePass Auto-Renewal: Subscriptions (₹99/month) auto-renew every 30 days. Members can turn off auto-renewal up to 24 hours before the billing cycle with zero cancellation penalty.
+- Coupon Stacking Matrix: Only ONE primary promo code (e.g., 'FIRSTBITE' or 'WELCOME50') can be applied per order. However, FoodiePass benefits (Unlimited Free Delivery on orders >₹199 and 10% discount up to ₹50 at select outlets) stack automatically on top of valid promo codes, EXCEPT during official "Mega Sale" events (e.g., Diwali Sale or IPL Match Days).
+- Minimum Order Value (MOV) Escalation: During extreme weather (Monsoon Alerts), the MOV for FoodiePass free delivery increases from ₹199 to ₹299 automatically.
+
+3. Anti-Fraud & Account Flagging Policy
+- Order Cancellation Limits: Users attempting to cancel more than 3 orders within a rolling 30-day window after restaurant acceptance will have cash-on-delivery (COD) permanently disabled for their account.
+- Referral Abuse Prevention: Referral bonuses (₹100 for both referee and referrer) are awarded ONLY after the new user completes their first order above ₹249. Maximum 10 successful referrals allowed per account per calendar month.

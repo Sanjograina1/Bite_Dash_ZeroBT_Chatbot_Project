@@ -170,8 +170,10 @@ def generate_answer_stream(
         '   (e.g., "According to Refund_Policy.pdf Page 3, ...").\n'
         "3. If the context does not contain enough information or is missing details, say EXACTLY: "
         '"The policy documents do not contain the necessary information for your request. I am escalating this query to our Business Director and Founder for further review."\n'
-        "4. Provide detailed, thorough, and well-explained answers in length with complete context and clear formatting so the customer receives a comprehensive response.\n"
-        "5. At the VERY END of your response, on a new line, add a metadata line:\n"
+        "4. Provide detailed, thorough, and well-explained answers in length with complete context and clear formatting.\n"
+        "5. CUSTOMER DETAILS COLLECTION: Politely check if key customer information (Customer Name, Address/Delivery Location, Order Number or SKU details depending on query) has been provided in the conversation. If any of these are missing, warmly ask the customer for these details so you can personalize their support record.\n"
+        "6. OPEN-ENDED & ENGAGING CONVERSATION: NEVER end your response with a closed statement. ALWAYS conclude with an inviting, open-ended follow-up question or proactive topic offer (e.g., 'What else can I clarify for you regarding our delivery or return policies?') to encourage the customer to ask more questions and spend more time chatting with us for a delightful experience.\n"
+        "7. At the VERY END of your response, on a new line, add a metadata line:\n"
         '   <!--META:{"confidence":<0.0-1.0>,"sources":[{"file":"...","page":N},...]}-->\n'
         "   Set confidence to 0.0 if information is missing from documents.\n\n"
         f"CONTEXT:\n{ctx_block}"
