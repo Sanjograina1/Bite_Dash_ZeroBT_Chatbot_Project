@@ -382,10 +382,19 @@ for msg in st.session_state.messages:
     avatar = "👤" if msg["role"] == "user" else "🤖"
     with st.chat_message(msg["role"], avatar=avatar):
         st.markdown(msg["content"])
-        if msg["role"] == "assistant" and msg.get("sources"):
-            with st.expander("📚 Referenced Sources"):
-                for src in msg["sources"]:
-                    st.markdown(f"• **{src['file']}** — Page {src['page']}")
+        if msg["role"] == "assistant":
+            if msg.get("query_understanding"):
+                qu = msg["query_understanding"]
+                with st.expander("🧠 Real-Time Query Understanding & Intent Analysis"):
+                    st.markdown(f"**⚡ Detected Intent:** `{qu.get('intent', 'N/A')}`")
+                    st.markdown(f"**🔍 Rewritten Search Query:** `{qu.get('rewritten_query', 'N/A')}`")
+                    entities = ", ".join([f"`{e}`" for e in qu.get("entities", [])]) or "None"
+                    st.markdown(f"**🏷️ Extracted Entities:** {entities}")
+                    st.markdown(f"**⏱️ Urgency:** `{qu.get('urgency', 'Medium')}` · **Topic:** *{qu.get('core_topic', 'N/A')}*")
+            if msg.get("sources"):
+                with st.expander("📚 Referenced Sources"):
+                    for src in msg["sources"]:
+                        st.markdown(f"• **{src['file']}** — Page {src['page']}")
 
 # ── Escalation banner ──
 if st.session_state.escalated and st.session_state.escalation_info:
@@ -430,6 +439,9 @@ if user_input:
     is_agree = any(w in user_lower for w in ["yes", "yep", "yeah", "sure", "please", "ok", "escalate", "agree"])
     is_decline = any(w in user_lower for w in ["no", "nope", "don't", "cancel", "fine", "nevermind"])
 
+    # ── Real-Time Query Understanding ──
+    qu_data = rag_engine.understand_query(user_input, st.session_state.messages[:-1], API_KEY)
+
     # ── Handle response to a pending escalation consent offer ──
     if st.session_state.pending_escalation is not None:
         pending = st.session_state.pending_escalation
@@ -455,7 +467,12 @@ if user_input:
                 f"Reference Ticket ID: `{st.session_state.session_id}`.\n\n"
                 f"How else can I help you today?"
             )
-            st.session_state.messages.append({"role": "assistant", "content": bot_msg, "sources": []})
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": bot_msg,
+                "query_understanding": qu_data,
+                "sources": []
+            })
             with st.chat_message("assistant", avatar="🤖"):
                 st.markdown(bot_msg)
             store.save_conversation(st.session_state.session_id, st.session_state.messages, st.session_state.tracker.history)
@@ -463,7 +480,12 @@ if user_input:
 
         elif is_decline:
             bot_msg = "Understood! I will not escalate this ticket. How else can I help you today?"
-            st.session_state.messages.append({"role": "assistant", "content": bot_msg, "sources": []})
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": bot_msg,
+                "query_understanding": qu_data,
+                "sources": []
+            })
             with st.chat_message("assistant", avatar="🤖"):
                 st.markdown(bot_msg)
             store.save_conversation(st.session_state.session_id, st.session_state.messages, st.session_state.tracker.history)
@@ -498,7 +520,12 @@ if user_input:
             f"Would you like me to escalate this ticket to our support team for further review?\n"
             f"*(Reply **Yes** to confirm escalation, or **No** to continue chatting with me)*"
         )
-        st.session_state.messages.append({"role": "assistant", "content": bot_msg, "sources": []})
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": bot_msg,
+            "query_understanding": qu_data,
+            "sources": []
+        })
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(bot_msg)
 
@@ -512,14 +539,21 @@ if user_input:
                 "Would you like me to escalate this query to our Business Director and Founder for further review?\n"
                 "*(Reply **Yes** to confirm escalation, or **No** to continue chatting with me)*"
             )
-            st.session_state.messages.append({"role": "assistant", "content": bot_msg, "sources": []})
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": bot_msg,
+                "query_understanding": qu_data,
+                "sources": []
+            })
             with st.chat_message("assistant", avatar="🤖"):
                 st.markdown(bot_msg)
         else:
+            rewritten_q = qu_data.get("rewritten_query", user_input)
             candidates = rag_engine.hybrid_search(
                 user_input, st.session_state.chunks, st.session_state.vectors,
                 st.session_state.bm25, API_KEY,
                 CONFIG.get("top_k", 5) * 2,
+                search_query=rewritten_q,
             )
             reranked = rag_engine.rerank(user_input, candidates, API_KEY, CONFIG.get("top_k", 5))
 
@@ -560,6 +594,14 @@ if user_input:
                 except Exception:
                     pass
 
+                # Render Query Understanding expander
+                with st.expander("🧠 Real-Time Query Understanding & Intent Analysis"):
+                    st.markdown(f"**⚡ Detected Intent:** `{qu_data.get('intent', 'N/A')}`")
+                    st.markdown(f"**🔍 Rewritten Search Query:** `{qu_data.get('rewritten_query', 'N/A')}`")
+                    entities = ", ".join([f"`{e}`" for e in qu_data.get("entities", [])]) or "None"
+                    st.markdown(f"**🏷️ Extracted Entities:** {entities}")
+                    st.markdown(f"**⏱️ Urgency:** `{qu_data.get('urgency', 'Medium')}` · **Topic:** *{qu_data.get('core_topic', 'N/A')}*")
+
                 if sources and confidence >= CONFIG.get("confidence_threshold", 0.6):
                     with st.expander("📚 Referenced Sources"):
                         for src in sources:
@@ -568,6 +610,7 @@ if user_input:
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": clean_text,
+                "query_understanding": qu_data,
                 "sources": sources if confidence >= CONFIG.get("confidence_threshold", 0.6) else [],
             })
 

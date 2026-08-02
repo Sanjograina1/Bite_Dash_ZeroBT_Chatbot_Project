@@ -11,6 +11,51 @@ from openai import OpenAI
 
 from modules import knowledge_base as kb
 
+# ── Real-Time Query Understanding ─────────────────────────────────────
+
+def understand_query(query: str, conversation: list[dict], api_key: str) -> dict:
+    """Analyze query in real-time to extract intent, expanded search query, key entities, and urgency."""
+    client = OpenAI(api_key=api_key)
+
+    history_snippet = "\n".join(
+        f"{m['role']}: {m['content']}" for m in conversation[-4:]
+    ) if conversation else "No prior history."
+
+    sys_prompt = (
+        "You are an expert NLP Query Understanding Engine for enterprise customer support.\n"
+        "Analyze the user's latest query in context of the conversation and produce:\n"
+        '1. "intent": concise intent category (e.g. Policy Inquiry, Refund Request, Delivery Issue, Escalation Request, Technical Support, General Question)\n'
+        '2. "rewritten_query": an expanded, optimized search query incorporating domain keywords, policy terminology, and contextual references for vector search\n'
+        '3. "entities": list of 2-5 key entities or domain terms extracted (e.g. ["UPI", "GST Invoice", "Refund Window"])\n'
+        '4. "urgency": "Low", "Medium", or "High"\n'
+        '5. "core_topic": 2-4 word summary of the user\'s specific issue\n'
+        "Return ONLY valid JSON with these 5 keys. No markdown block."
+    )
+
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": f"Conversation History:\n{history_snippet}\n\nLatest User Query: {query}"},
+            ],
+            temperature=0.2,
+            max_tokens=250,
+        )
+        text = resp.choices[0].message.content.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0]
+        return json.loads(text)
+    except Exception:
+        return {
+            "intent": "General Inquiry",
+            "rewritten_query": query,
+            "entities": [],
+            "urgency": "Medium",
+            "core_topic": query[:30],
+        }
+
+
 # ── Hybrid Search ────────────────────────────────────────────────────
 
 def hybrid_search(
@@ -20,20 +65,23 @@ def hybrid_search(
     bm25,
     api_key: str,
     top_k: int = 10,
+    search_query: str = None,
 ) -> list[dict]:
     """Combine dense (cosine) + sparse (BM25) via Reciprocal Rank Fusion."""
     if not chunks or vectors is None:
         return []
 
+    target_query = search_query if search_query else query
+
     # 1. Dense search — cosine similarity
-    qvec = kb.embed_texts([query], api_key)[0]
+    qvec = kb.embed_texts([target_query], api_key)[0]
     norms = np.linalg.norm(vectors, axis=1)
     qnorm = np.linalg.norm(qvec)
     sims = vectors @ qvec / (norms * qnorm + 1e-10)
     dense_ranked = list(np.argsort(sims)[::-1][:20])
 
     # 2. Sparse search — BM25
-    tokens = kb._tokenize(query)
+    tokens = kb._tokenize(target_query)
     bm25_scores = bm25.get_scores(tokens) if bm25 else np.zeros(len(chunks))
     sparse_ranked = list(np.argsort(bm25_scores)[::-1][:20])
 
