@@ -55,7 +55,7 @@ class FrustrationTracker:
     """Maintains a rolling frustration score (0–100) across a session."""
 
     def __init__(self):
-        self.score: float = 20.0          # start slightly above zero
+        self.score: float = 0.0           # start at zero
         self.history: list[float] = []    # all deltas
         self.window: list[float] = []     # last 5 deltas
 
@@ -81,22 +81,20 @@ class FrustrationTracker:
         # Three consecutive negative messages
         if len(self.window) >= 3 and all(d > 5 for d in self.window[-3:]):
             if self.score >= 50:
-                return 5
+                return 3
 
         if self.score >= 95:
-            return 8
-        if self.score >= 85:
-            return 7
-        if self.score >= 70:
             return 6
-        if self.score >= 55:
+        if self.score >= 88:
             return 5
-        if self.score >= 40:
+        if self.score >= 80:
             return 4
-        if self.score >= 30:
+        if self.score >= 72:
             return 3
-        if self.score >= 20:
+        if self.score >= 65:
             return 2
+        if self.score >= 60:
+            return 1
         return None
 
     def to_dict(self) -> dict:

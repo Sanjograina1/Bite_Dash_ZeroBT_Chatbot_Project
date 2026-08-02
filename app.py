@@ -437,26 +437,22 @@ if user_input:
     with st.chat_message("user", avatar="👤"):
         st.markdown(user_input)
 
-    # ── Sentiment analysis ──
-    analysis = sentiment.analyze_message(user_input, API_KEY)
-    frust_score = st.session_state.tracker.update(analysis)
-
     auto_level = st.session_state.tracker.should_auto_escalate()
     wants_human = analysis.get("wants_human", False)
 
-    # Progressive escalation logic (Level 1 -> Level 8)
-    curr_lvl = st.session_state.escalation_level_index
-    if (auto_level or wants_human or (curr_lvl > 0 and frust_score >= 40)) and curr_lvl < 8:
-        next_level = min(8, curr_lvl + 1)
+    # Escalate BEFORE answering ONLY if customer explicitly requested human or frustration is genuinely high (score >= 60)
+    if wants_human or auto_level is not None:
+        curr_lvl = st.session_state.escalation_level_index
+        next_level = min(6, curr_lvl + 1)
         st.session_state.escalation_level_index = next_level
 
         assessed = sentiment.assess_seriousness(
             st.session_state.messages, frust_score, API_KEY
         )
-        esc_level = max(next_level, min(8, assessed.get("level", 1)))
+        esc_level = max(next_level, min(6, assessed.get("level", 1)))
         reason = assessed.get("reason", "Customer frustration / escalation signal")
         if wants_human:
-            reason = "Customer requested human intervention. " + reason
+            reason = "Customer explicitly requested human intervention. " + reason
 
         with st.spinner(f"Escalating query to Level {esc_level} support…"):
             esc_result = escalation.escalate(
