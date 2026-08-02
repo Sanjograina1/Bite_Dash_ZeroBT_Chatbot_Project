@@ -24,47 +24,48 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 html, body, .stApp, [data-testid="stAppViewContainer"],
 [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
-    background-color: #0D0E15 !important; color: #F1F5F9 !important;
+    background-color: #F8FAFC !important; color: #0F172A !important;
     font-family: 'Inter', sans-serif !important;
 }
-[data-testid="stSidebar"] { background: #161927 !important; }
-[data-testid="stSidebar"] * { color: #F1F5F9 !important; }
+[data-testid="stSidebar"] { background: #F1F5F9 !important; border-right: 1px solid #E2E8F0 !important; }
+[data-testid="stSidebar"] * { color: #0F172A !important; }
 header[data-testid="stHeader"] { background: transparent !important; }
 #MainMenu, footer { visibility: hidden; }
-.stMetric label, .stMetric [data-testid="stMetricValue"] { color: #F1F5F9 !important; }
+.stMetric label { color: #64748B !important; }
+.stMetric [data-testid="stMetricValue"] { color: #0F172A !important; font-weight: 700 !important; }
 
 /* Drag-drop animation */
 @keyframes dropBounce {
     0%   { transform: scale(1); }
-    50%  { transform: scale(1.03); }
+    50%  { transform: scale(1.02); }
     100% { transform: scale(1); }
 }
 [data-testid="stFileUploader"]:hover {
     animation: dropBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 [data-testid="stFileUploader"] {
-    background: #161927 !important;
-    border: 2px dashed #2D3250 !important;
+    background: #FFFFFF !important;
+    border: 2px dashed #CBD5E1 !important;
     border-radius: 12px !important;
     transition: border-color 0.3s ease;
 }
 [data-testid="stFileUploader"]:hover {
-    border-color: #B8A1EA !important;
+    border-color: #6366F1 !important;
 }
 
 .doc-card {
-    background: #161927; border: 1px solid #1e2235; border-radius: 10px;
-    padding: 16px 20px; margin: 8px 0;
+    background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px;
+    padding: 16px 20px; margin: 8px 0; box-shadow: 0 2px 6px rgba(0,0,0,0.02);
 }
-.doc-card h4 { margin: 0 0 6px 0; color: #F1F5F9; }
-.status-active { color: #86EFAC; }
-.status-deleted { color: #FCA5A5; }
+.doc-card h4 { margin: 0 0 6px 0; color: #0F172A; }
+.status-active { color: #059669; font-weight: 700; }
+.status-deleted { color: #E11D48; font-weight: 700; }
 </style>
 """, unsafe_allow_html=True)
 
 # ── Header ───────────────────────────────────────────────────────────
 st.markdown("## 📋 Knowledge Base Management")
-st.markdown("Upload business documents, view indexing status, and manage your knowledge base.")
+st.markdown("Upload business documents, view indexing status, and manage your ZeroBT knowledge base.")
 
 # ── Upload ───────────────────────────────────────────────────────────
 st.markdown("### Upload Documents")
@@ -107,7 +108,7 @@ else:
         <div class="doc-card">
             <h4>📄 {doc['name']}</h4>
             <span class="{status_class}">{doc['status'].upper()}</span> ·
-            <span style="color:#94A3B8">{doc['chunk_count']} chunks · {doc['file_type']} · {doc['uploaded_at']}</span>
+            <span style="color:#64748B">{doc['chunk_count']} chunks · {doc['file_type']} · {doc['uploaded_at']}</span>
         </div>
         """, unsafe_allow_html=True)
 

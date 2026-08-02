@@ -71,8 +71,26 @@ def generate_escalation_summary(conversation: list[dict], api_key: str) -> dict:
 
 # ── HTML Email Builder ───────────────────────────────────────────────
 
-_LEVEL_COLORS = {1: "#86EFAC", 2: "#FDE047", 3: "#FCA5A5", 4: "#FCA5A5"}
-_LEVEL_LABELS = {1: "Low", 2: "Medium", 3: "High", 4: "Critical"}
+_LEVEL_COLORS = {
+    1: "#86EFAC",
+    2: "#A7F3D0",
+    3: "#FDE047",
+    4: "#FACC15",
+    5: "#FB923C",
+    6: "#F87171",
+    7: "#EF4444",
+    8: "#DC2626",
+}
+_LEVEL_LABELS = {
+    1: "Tier 1 Support",
+    2: "Tier 2 Support",
+    3: "Tier 3 Support",
+    4: "Tier 4 Support",
+    5: "Senior Agent",
+    6: "Support Manager",
+    7: "Business Director",
+    8: "Founder",
+}
 
 
 def build_escalation_email(
@@ -85,16 +103,18 @@ def build_escalation_email(
     """Build a rich HTML escalation email."""
     cfg = load_config()
     app_url = cfg.get("app_url", "http://localhost:8501")
-    color = _LEVEL_COLORS.get(level, "#FCA5A5")
-    label = _LEVEL_LABELS.get(level, "Unknown")
+    contact = get_hierarchy_contact(level)
+    role_name = contact.get("role", _LEVEL_LABELS.get(level, f"Level {level}"))
+    color = _LEVEL_COLORS.get(level, "#EF4444")
 
     transcript_html = ""
     for m in conversation:
-        sender = "Customer" if m["role"] == "user" else "AI Bot"
-        bg = "#2D3250" if m["role"] == "user" else "#1e2235"
+        sender = "Customer" if m["role"] == "user" else "ZeroBT AI"
+        bg = "#F1F5F9" if m["role"] == "user" else "#E2E8F0"
+        text_color = "#1E293B"
         transcript_html += (
-            f'<div style="background:{bg};color:#F1F5F9;padding:10px 14px;'
-            f'border-radius:8px;margin:6px 0;font-size:14px;">'
+            f'<div style="background:{bg};color:{text_color};padding:10px 14px;'
+            f'border-radius:8px;margin:6px 0;font-size:14px;border:1px solid #CBD5E1;">'
             f"<strong>{sender}:</strong> {m['content']}</div>"
         )
 
@@ -108,40 +128,40 @@ def build_escalation_email(
     reassign_url = f"{app_url}/Agent_Portal?action=reassign&ticket={session_id}"
 
     return f"""
-    <html><body style="background:#0D0E15;color:#F1F5F9;font-family:Arial,sans-serif;padding:24px;">
-    <div style="max-width:640px;margin:0 auto;background:#161927;border-radius:12px;overflow:hidden;">
-        <div style="background:{color};color:#0D0E15;padding:16px 24px;font-size:18px;font-weight:bold;">
-            ⚠ Escalation — Level {level} ({label})
+    <html><body style="background:#F8FAFC;color:#0F172A;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:24px;">
+    <div style="max-width:640px;margin:0 auto;background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow: 0 4px 12px rgba(0,0,0,0.08);border: 1px solid #E2E8F0;">
+        <div style="background:{color};color:#FFFFFF;padding:18px 24px;font-size:18px;font-weight:bold;">
+            ⚠ ZeroBT Escalation — Level {level}: {role_name}
         </div>
         <div style="padding:24px;">
-            <h3 style="color:#B8A1EA;margin-top:0;">Problem Summary</h3>
-            <p>{summary}</p>
+            <h3 style="color:#6366F1;margin-top:0;">Problem Summary</h3>
+            <p style="color:#334155;line-height:1.5;">{summary}</p>
 
-            <h3 style="color:#B8A1EA;">Key Facts</h3>
-            <ul>{facts_html}</ul>
+            <h3 style="color:#6366F1;">Key Facts</h3>
+            <ul style="color:#334155;">{facts_html}</ul>
 
-            <h3 style="color:#B8A1EA;">Reason for Escalation</h3>
-            <p>{reason}</p>
+            <h3 style="color:#6366F1;">Reason for Escalation</h3>
+            <p style="color:#334155;line-height:1.5;">{reason}</p>
 
-            <h3 style="color:#B8A1EA;">Suggested Reply</h3>
-            <div style="background:#2D3250;padding:14px;border-radius:8px;border-left:3px solid #86EFAC;">
+            <h3 style="color:#6366F1;">AI Suggested Reply</h3>
+            <div style="background:#F1F5F9;color:#1E293B;padding:14px;border-radius:8px;border-left:4px solid #6366F1;">
                 {suggested}
             </div>
 
-            <h3 style="color:#B8A1EA;margin-top:24px;">Conversation Transcript</h3>
+            <h3 style="color:#6366F1;margin-top:24px;">Conversation Transcript</h3>
             {transcript_html}
 
             <div style="margin-top:24px;text-align:center;">
-                <a href="{resolve_url}" style="display:inline-block;background:#86EFAC;color:#0D0E15;
+                <a href="{resolve_url}" style="display:inline-block;background:#10B981;color:#FFFFFF;
                    padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin:4px;">
                    ✓ Mark Resolved</a>
-                <a href="{reassign_url}" style="display:inline-block;background:#FDE047;color:#0D0E15;
+                <a href="{reassign_url}" style="display:inline-block;background:#F59E0B;color:#FFFFFF;
                    padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin:4px;">
                    ↗ Re-assign</a>
             </div>
         </div>
-        <div style="background:#0D0E15;padding:12px;text-align:center;font-size:12px;color:#94A3B8;">
-            AI Customer Support System · Session {session_id}
+        <div style="background:#F1F5F9;padding:12px;text-align:center;font-size:12px;color:#64748B;border-top:1px solid #E2E8F0;">
+            ZeroBT Support Intelligence Engine · Session {session_id}
         </div>
     </div>
     </body></html>

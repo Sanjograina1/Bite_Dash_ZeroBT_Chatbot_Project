@@ -1,7 +1,7 @@
 """
-AI Customer Support Chatbot — Main Chat Interface
+ZeroBT AI Support Chatbot — Main Chat Interface
 ==================================================
-Streaming RAG answers · Frustration gauge · Voice I/O · Escalation · CSAT
+Pastel Matte Theme · Streaming RAG · Frustration Tracking · Gmail Escalation (8 Levels)
 Run:  streamlit run app.py
 """
 
@@ -23,38 +23,46 @@ CONFIG = json.loads((Path(__file__).parent / "config.json").read_text()) if (Pat
 
 # ── Page Config ──────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="AI Support · Chat",
-    page_icon="💬",
+    page_title="ZeroBT · AI Customer Support",
+    page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ═════════════════════════════════════════════════════════════════════
-# CSS — Dark Slate + Pastel Highlights
+# CSS — Pastel Bright & Matte Light Styling (High Contrast & Visible Fonts)
 # ═════════════════════════════════════════════════════════════════════
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
 
 :root {
-    --bg-main:    #0D0E15;
-    --bg-card:    #161927;
-    --bg-user:    #2D3250;
-    --accent-bot: #B8A1EA;
-    --accent-usr: #7DD3FC;
-    --lvl1:       #86EFAC;
-    --lvl2:       #FDE047;
-    --lvl34:      #FCA5A5;
-    --txt:        #F1F5F9;
-    --txt-muted:  #94A3B8;
+    --bg-main:    #F8FAFC;
+    --bg-card:    #FFFFFF;
+    --bg-user:    #EEF2FF;
+    --bg-bot:     #FAF5FF;
+    --border-user:#C7D2FE;
+    --border-bot: #E9D5FF;
+    --accent-bot: #7C3AED;
+    --accent-usr: #4338CA;
+    --txt-main:   #0F172A;
+    --txt-muted:  #475569;
+    --lvl1:       #10B981;
+    --lvl2:       #059669;
+    --lvl3:       #D97706;
+    --lvl4:       #E11D48;
+    --lvl5:       #EA580C;
+    --lvl6:       #C026D3;
+    --lvl7:       #E11D48;
+    --lvl8:       #991B1B;
 }
 
-/* ── Global ── */
+/* ── Global Page ── */
 html, body, .stApp, [data-testid="stAppViewContainer"],
 [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
     background-color: var(--bg-main) !important;
-    color: var(--txt) !important;
+    color: var(--txt-main) !important;
     font-family: 'Inter', sans-serif !important;
 }
 header[data-testid="stHeader"] { background: transparent !important; }
@@ -62,12 +70,12 @@ header[data-testid="stHeader"] { background: transparent !important; }
 
 /* ── Sidebar ── */
 [data-testid="stSidebar"] {
-    background: var(--bg-card) !important;
-    border-right: 1px solid #1e2235;
+    background: #F1F5F9 !important;
+    border-right: 1px solid #E2E8F0 !important;
 }
 [data-testid="stSidebar"] *, [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] .stMarkdown p {
-    color: var(--txt) !important;
+    color: var(--txt-main) !important;
     font-family: 'Inter', sans-serif !important;
 }
 
@@ -75,75 +83,104 @@ header[data-testid="stHeader"] { background: transparent !important; }
 [data-testid="stChatMessage"] {
     background: var(--bg-card) !important;
     border-radius: 14px !important;
-    border: 1px solid #1e2235 !important;
-    animation: msgSpring 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    margin-bottom: 8px !important;
+    border: 1px solid #E2E8F0 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03) !important;
+    animation: msgSpring 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    margin-bottom: 12px !important;
+    padding: 14px 18px !important;
 }
 @keyframes msgSpring {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
 }
-[data-testid="stChatMessage"] p,
-[data-testid="stChatMessage"] li,
-[data-testid="stChatMessage"] span {
-    color: var(--txt) !important;
+
+/* User Message Styling */
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+    background: var(--bg-user) !important;
+    border: 1px solid var(--border-user) !important;
 }
 
-/* ── Chat Input ── */
+/* Assistant Message Styling */
+[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-assistant"]) {
+    background: var(--bg-bot) !important;
+    border: 1px solid var(--border-bot) !important;
+}
+
+/* Chat Text Elements */
+[data-testid="stChatMessage"] p,
+[data-testid="stChatMessage"] li,
+[data-testid="stChatMessage"] span,
+[data-testid="stChatMessage"] div {
+    color: var(--txt-main) !important;
+    font-size: 15px !important;
+    line-height: 1.6 !important;
+}
+
+/* ── Input Box ── */
 [data-testid="stChatInput"] {
-    background: var(--bg-card) !important;
-    border-color: #2D3250 !important;
+    background: #FFFFFF !important;
+    border: 1.5px solid #CBD5E1 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03) !important;
 }
 [data-testid="stChatInputTextArea"] {
-    color: var(--txt) !important;
-    background: var(--bg-card) !important;
+    color: var(--txt-main) !important;
+    font-size: 15px !important;
 }
 
 /* ── Buttons ── */
 .stButton > button {
     font-family: 'Inter', sans-serif !important;
-    font-weight: 600;
-    border-radius: 8px;
-    border: none;
-    transition: all 0.25s ease;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    border: 1px solid #CBD5E1 !important;
+    background: #FFFFFF !important;
+    color: #334155 !important;
+    transition: all 0.2s ease !important;
 }
 .stButton > button:hover {
+    border-color: #6366F1 !important;
+    color: #4338CA !important;
+    background: #EEF2FF !important;
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(184,161,234,0.2);
 }
 button[data-testid="stBaseButton-primary"] {
-    background: var(--accent-bot) !important;
-    color: var(--bg-main) !important;
+    background: #4F46E5 !important;
+    color: #FFFFFF !important;
+    border: none !important;
+}
+button[data-testid="stBaseButton-primary"]:hover {
+    background: #4338CA !important;
+    box-shadow: 0 4px 12px rgba(79,70,229,0.25) !important;
 }
 
-/* ── Expander (source citations) ── */
+/* ── Expanders ── */
 [data-testid="stExpander"] {
-    background: #1a1d2e !important;
-    border: 1px solid #2D3250 !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
     border-radius: 10px !important;
 }
-[data-testid="stExpander"] summary, [data-testid="stExpander"] p,
-[data-testid="stExpander"] span {
-    color: var(--txt-muted) !important;
+[data-testid="stExpander"] summary {
+    color: #475569 !important;
+    font-weight: 600 !important;
 }
 
-/* ── Metrics / badges ── */
-.stMetric label, .stMetric [data-testid="stMetricValue"] {
-    color: var(--txt) !important;
-}
+/* ── Metrics ── */
+.stMetric label { color: #64748B !important; font-size: 13px !important; }
+.stMetric [data-testid="stMetricValue"] { color: #0F172A !important; font-weight: 700 !important; }
 
 /* ── Frustration Gauge ── */
-.gauge-container { text-align: center; margin: 12px 0; }
+.gauge-container { text-align: center; margin: 10px 0; }
 .gauge-label {
-    font-size: 11px; color: var(--txt-muted);
-    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;
+    font-size: 12px; color: #64748B;
+    text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
 }
 .gauge-score {
-    font-size: 32px; font-weight: 700;
+    font-size: 34px; font-weight: 800;
     font-family: 'JetBrains Mono', monospace;
 }
 
-/* ── Typing Indicator ── */
+/* ── Typing Dots ── */
 @keyframes dotPulse {
     0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
     40% { opacity: 1; transform: scale(1); }
@@ -151,7 +188,7 @@ button[data-testid="stBaseButton-primary"] {
 .typing-dots span {
     display: inline-block;
     width: 8px; height: 8px;
-    background: var(--accent-bot);
+    background: #7C3AED;
     border-radius: 50%;
     margin: 0 3px;
     animation: dotPulse 1.4s ease-in-out infinite;
@@ -159,38 +196,23 @@ button[data-testid="stBaseButton-primary"] {
 .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
 .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
-/* ── AI Glow ── */
-@keyframes aiGlow {
-    0%, 100% { box-shadow: 0 0 12px rgba(184,161,234,0.2); }
-    50%      { box-shadow: 0 0 28px rgba(184,161,234,0.5); }
-}
-.ai-glow { animation: aiGlow 2s ease-in-out infinite; border-radius: 50%; }
-
 /* ── Escalation Banner ── */
-@keyframes escPulse {
-    0%, 100% { border-color: var(--lvl34); }
-    50%      { border-color: rgba(252,165,165,0.3); }
-}
 .esc-banner {
-    background: linear-gradient(135deg, #2a1520, #1e1525);
-    border: 2px solid var(--lvl34);
+    background: #FEF2F2;
+    border: 1.5px solid #FCA5A5;
     border-radius: 12px;
     padding: 16px 20px;
-    margin: 12px 0;
-    animation: escPulse 2s ease infinite;
+    margin: 14px 0;
+    color: #991B1B;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.08);
 }
+.esc-banner strong { font-size: 16px; color: #7F1D1D; }
 
-/* ── Rating Stars ── */
-.star-btn { font-size: 28px; cursor: pointer; transition: transform 0.15s; }
-.star-btn:hover { transform: scale(1.3); }
-
-/* ── Misc ── */
 .section-label {
-    font-size: 11px; color: var(--txt-muted);
-    text-transform: uppercase; letter-spacing: 1.2px;
+    font-size: 11px; color: #64748B;
+    text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
     margin: 16px 0 6px 0;
 }
-hr { border-color: #1e2235 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -237,23 +259,23 @@ _load_kb()
 # ═════════════════════════════════════════════════════════════════════
 
 with st.sidebar:
-    st.markdown("## 💬 AI Support")
-    st.markdown(f'<p class="section-label">Session: {st.session_state.session_id}</p>',
+    st.markdown("## 🤖 ZeroBT Support")
+    st.markdown(f'<p class="section-label">Session ID: {st.session_state.session_id}</p>',
                 unsafe_allow_html=True)
     st.divider()
 
     # ── Frustration Gauge ──
     score = st.session_state.tracker.score
-    if score < 40:
-        g_color = "#86EFAC"
-    elif score < 70:
-        g_color = "#FDE047"
+    if score < 35:
+        g_color = "#10B981"
+    elif score < 65:
+        g_color = "#D97706"
     else:
-        g_color = "#FCA5A5"
+        g_color = "#DC2626"
 
     st.markdown(f"""
     <div class="gauge-container">
-        <div class="gauge-label">Frustration Level</div>
+        <div class="gauge-label">Frustration Meter</div>
         <div class="gauge-score" style="color:{g_color}">{int(score)}</div>
     </div>
     """, unsafe_allow_html=True)
@@ -269,17 +291,16 @@ with st.sidebar:
     c2.metric("Chunks", chunk_count)
 
     if doc_count == 0:
-        st.warning("No documents uploaded. Go to **Admin Dashboard** to add files.")
+        st.warning("No documents uploaded yet. Add files in **Admin Dashboard**.")
     st.divider()
 
     # ── Voice Input ──
     st.markdown(f'<p class="section-label">Voice Input</p>', unsafe_allow_html=True)
-    audio = st.audio_input("🎤 Tap to speak", key="voice_input")
+    audio = st.audio_input("🎤 Speak query", key="voice_input")
 
     # ── New Session ──
     st.divider()
-    if st.button("🔄 New Chat Session", use_container_width=True):
-        # Save current conversation
+    if st.button("🔄 Start New Session", use_container_width=True):
         if st.session_state.messages:
             store.save_conversation(
                 st.session_state.session_id,
@@ -287,7 +308,6 @@ with st.sidebar:
                 st.session_state.tracker.history,
                 "closed",
             )
-        # Reset
         st.session_state.messages = []
         st.session_state.session_id = store.new_session_id()
         st.session_state.tracker = sentiment.FrustrationTracker()
@@ -316,18 +336,18 @@ if audio and API_KEY:
 # CHAT AREA
 # ═════════════════════════════════════════════════════════════════════
 
-st.markdown("### Customer Support Chat")
+st.markdown("### ZeroBT Support Portal")
+st.markdown("Ask anything regarding our policies, products, or service guidelines.")
 
 # ── Render history ──
 for msg in st.session_state.messages:
     avatar = "👤" if msg["role"] == "user" else "🤖"
     with st.chat_message(msg["role"], avatar=avatar):
         st.markdown(msg["content"])
-        # Source citations for bot messages
         if msg["role"] == "assistant" and msg.get("sources"):
-            with st.expander("📚 Sources"):
+            with st.expander("📚 Referenced Sources"):
                 for src in msg["sources"]:
-                    st.markdown(f"**{src['file']}** — Page {src['page']}")
+                    st.markdown(f"• **{src['file']}** — Page {src['page']}")
 
 # ── Escalation banner ──
 if st.session_state.escalated and st.session_state.escalation_info:
@@ -335,10 +355,9 @@ if st.session_state.escalated and st.session_state.escalation_info:
     contact = info.get("contact", {})
     st.markdown(f"""
     <div class="esc-banner">
-        <strong>⚠ Escalated to {contact.get('name','Agent')}
-        ({contact.get('role','Support')}) — Level {info.get('level',1)}</strong><br>
-        <span style="color:var(--txt-muted);font-size:13px;">
-            A support agent has been notified and will follow up shortly.
+        <strong>⚠ Case Escalated to {contact.get('name','Support Team')} ({contact.get('role','Executive')}) — Level {info.get('level',1)}</strong><br>
+        <span style="font-size:14px;color:#7F1D1D;">
+            Our support hierarchy has been alerted via email. A ticket (ID: <code>{st.session_state.session_id}</code>) has been dispatched for review.
         </span>
     </div>
     """, unsafe_allow_html=True)
@@ -346,7 +365,7 @@ if st.session_state.escalated and st.session_state.escalation_info:
 # ── CSAT Rating ──
 if st.session_state.escalated and not st.session_state.rated:
     st.markdown("---")
-    st.markdown("**How was your experience?**")
+    st.markdown("**Rate your ZeroBT support interaction:**")
     cols = st.columns(5)
     for i in range(5):
         if cols[i].button("⭐" * (i + 1), key=f"star_{i}"):
@@ -355,31 +374,14 @@ if st.session_state.escalated and not st.session_state.rated:
             st.rerun()
 
 # ═════════════════════════════════════════════════════════════════════
-# TTS Helper
-# ═════════════════════════════════════════════════════════════════════
-
-def _speak_js(text: str):
-    safe = text.replace("\\", "\\\\").replace("`", "\\`").replace("'", "\\'")
-    st.components.v1.html(f"""
-    <script>
-    const u = new SpeechSynthesisUtterance(`{safe}`);
-    u.rate = 1.0; u.pitch = 1.0;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
-    </script>
-    """, height=0)
-
-# ═════════════════════════════════════════════════════════════════════
 # PROCESS USER INPUT
 # ═════════════════════════════════════════════════════════════════════
 
-user_input = st.chat_input("Type your message…")
-# Use voice input if available and no typed input
+user_input = st.chat_input("Type your question here…")
 if voice_text and not user_input:
     user_input = voice_text
 
 if user_input:
-    # ── Add user message ──
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user", avatar="👤"):
         st.markdown(user_input)
@@ -388,22 +390,19 @@ if user_input:
     analysis = sentiment.analyze_message(user_input, API_KEY)
     frust_score = st.session_state.tracker.update(analysis)
 
-    # ── Check for auto-escalation via sentiment ──
     auto_level = st.session_state.tracker.should_auto_escalate()
     wants_human = analysis.get("wants_human", False)
 
     if (auto_level or wants_human) and not st.session_state.escalated:
-        # Assess seriousness
         assessed = sentiment.assess_seriousness(
             st.session_state.messages, frust_score, API_KEY
         )
         esc_level = max(auto_level or 1, assessed.get("level", 1))
-        reason = assessed.get("reason", "Emotional signal detected")
+        reason = assessed.get("reason", "Customer frustration / escalation signal")
         if wants_human:
-            reason = "Customer explicitly requested a human agent. " + reason
+            reason = "Customer requested human intervention. " + reason
 
-        # Escalate
-        with st.spinner("Escalating to a support agent…"):
+        with st.spinner("Escalating query to support team…"):
             esc_result = escalation.escalate(
                 st.session_state.session_id,
                 st.session_state.messages,
@@ -414,36 +413,47 @@ if user_input:
         st.session_state.escalation_info = esc_result
 
         bot_msg = (
-            f"I understand your frustration. I've escalated your case to "
+            f"I hear you. I have escalated your issue to "
             f"**{esc_result['contact'].get('name', 'our team')}** "
-            f"({esc_result['contact'].get('role', 'Support')}) who will follow up shortly. "
-            f"Your reference ID is **{st.session_state.session_id}**."
+            f"({esc_result['contact'].get('role', 'Support')}) via email for immediate assistance. "
+            f"Reference Ticket ID: `{st.session_state.session_id}`."
         )
         st.session_state.messages.append({"role": "assistant", "content": bot_msg, "sources": []})
         with st.chat_message("assistant", avatar="🤖"):
             st.markdown(bot_msg)
 
     else:
-        # ── RAG Response ──
+        # ── Knowledge Base Verification & RAG ──
         if not st.session_state.chunks:
-            bot_msg = ("I don't have any knowledge base documents loaded yet. "
-                       "Please ask an admin to upload business documents so I can help you.")
+            # Trigger escalation to Business Director (Level 7) and Founder (Level 8)
+            reason = "Knowledge base empty. Query requires executive review."
+            store.log_knowledge_gap(user_input)
+            with st.spinner("Escalating to Business Director & Founder…"):
+                esc_result = escalation.escalate(
+                    st.session_state.session_id,
+                    st.session_state.messages,
+                    7, reason,
+                    API_KEY, GMAIL_USER, GMAIL_PASS,
+                )
+            st.session_state.escalated = True
+            st.session_state.escalation_info = esc_result
+
+            bot_msg = (
+                "The policy documents do not contain the necessary information for your request. "
+                "I am escalating this query to our Business Director and Founder for further review."
+            )
             st.session_state.messages.append({"role": "assistant", "content": bot_msg, "sources": []})
             with st.chat_message("assistant", avatar="🤖"):
                 st.markdown(bot_msg)
         else:
-            # Hybrid search + re-rank
             candidates = rag_engine.hybrid_search(
                 user_input, st.session_state.chunks, st.session_state.vectors,
                 st.session_state.bm25, API_KEY,
                 CONFIG.get("top_k", 5) * 2,
             )
-            reranked = rag_engine.rerank(user_input, candidates, API_KEY,
-                                         CONFIG.get("top_k", 5))
+            reranked = rag_engine.rerank(user_input, candidates, API_KEY, CONFIG.get("top_k", 5))
 
-            # Streaming response
             with st.chat_message("assistant", avatar="🤖"):
-                # Typing indicator
                 typing_ph = st.empty()
                 typing_ph.markdown(
                     '<div class="typing-dots"><span></span><span></span><span></span></div>',
@@ -458,49 +468,49 @@ if user_input:
                     full_response += token
                     typing_ph.empty()
                     placeholder.markdown(full_response + "▌")
-                placeholder.markdown(full_response)
 
-                # Parse metadata
                 meta = rag_engine.parse_answer_metadata(full_response)
                 clean_text = meta["clean_text"]
                 confidence = meta["confidence"]
                 sources = meta["sources"]
 
+                # Missing policy info detection
+                missing_info_phrase = "policy documents do not contain the necessary information"
+                if missing_info_phrase.lower() in clean_text.lower() or confidence < CONFIG.get("confidence_threshold", 0.6):
+                    clean_text = (
+                        "The policy documents do not contain the necessary information for your request. "
+                        "I am escalating this query to our Business Director and Founder for further review."
+                    )
+                    confidence = 0.0
+
                 placeholder.markdown(clean_text)
 
-                # Source citations
-                if sources:
-                    with st.expander("📚 Sources"):
+                if sources and confidence >= CONFIG.get("confidence_threshold", 0.6):
+                    with st.expander("📚 Referenced Sources"):
                         for src in sources:
-                            st.markdown(f"**{src.get('file', '?')}** — Page {src.get('page', '?')}")
+                            st.markdown(f"• **{src.get('file', '?')}** — Page {src.get('page', '?')}")
 
             st.session_state.messages.append({
                 "role": "assistant",
                 "content": clean_text,
-                "sources": sources,
+                "sources": sources if confidence >= CONFIG.get("confidence_threshold", 0.6) else [],
             })
 
-            # ── Confidence check → knowledge gap / escalation ──
-            threshold = CONFIG.get("confidence_threshold", 0.6)
-            if confidence < threshold and not st.session_state.escalated:
+            # Check if escalation needed for missing info or low confidence
+            if confidence < CONFIG.get("confidence_threshold", 0.6) and not st.session_state.escalated:
                 store.log_knowledge_gap(user_input)
+                reason = f"Knowledge gap / policy information missing for query: '{user_input[:60]}'"
+                with st.spinner("Escalating to Business Director & Founder…"):
+                    esc_result = escalation.escalate(
+                        st.session_state.session_id,
+                        st.session_state.messages,
+                        7, # Level 7 (Business Director)
+                        reason,
+                        API_KEY, GMAIL_USER, GMAIL_PASS,
+                    )
+                st.session_state.escalated = True
+                st.session_state.escalation_info = esc_result
 
-                assessed = sentiment.assess_seriousness(
-                    st.session_state.messages, frust_score, API_KEY
-                )
-                if assessed.get("level", 1) >= 2:
-                    reason = f"Low confidence ({confidence:.0%}). " + assessed.get("reason", "")
-                    with st.spinner("Escalating…"):
-                        esc_result = escalation.escalate(
-                            st.session_state.session_id,
-                            st.session_state.messages,
-                            assessed["level"], reason,
-                            API_KEY, GMAIL_USER, GMAIL_PASS,
-                        )
-                    st.session_state.escalated = True
-                    st.session_state.escalation_info = esc_result
-
-    # ── Persist conversation ──
     store.save_conversation(
         st.session_state.session_id,
         st.session_state.messages,

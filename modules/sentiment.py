@@ -81,13 +81,21 @@ class FrustrationTracker:
         # Three consecutive negative messages
         if len(self.window) >= 3 and all(d > 5 for d in self.window[-3:]):
             if self.score >= 50:
-                return 2
+                return 5
 
         if self.score >= 95:
-            return 4
+            return 8
         if self.score >= 85:
-            return 3
+            return 7
         if self.score >= 70:
+            return 6
+        if self.score >= 55:
+            return 5
+        if self.score >= 40:
+            return 4
+        if self.score >= 30:
+            return 3
+        if self.score >= 20:
             return 2
         return None
 
@@ -107,7 +115,7 @@ class FrustrationTracker:
 
 def assess_seriousness(conversation: list[dict], frustration_score: float,
                        api_key: str) -> dict:
-    """Full-context LLM assessment. Returns {level: 1-4, reason: str}."""
+    """Full-context LLM assessment across 8 levels. Returns {level: 1-8, reason: str}."""
     client = OpenAI(api_key=api_key)
 
     transcript = "\n".join(
@@ -121,8 +129,8 @@ def assess_seriousness(conversation: list[dict], frustration_score: float,
             {
                 "role": "system",
                 "content": (
-                    "You are an escalation intelligence system. Analyze this customer support "
-                    "conversation and determine the seriousness level.\n\n"
+                    "You are an escalation intelligence system for ZeroBT chatbot. Analyze this customer support "
+                    "conversation and determine the seriousness level from 1 to 8.\n\n"
                     "Consider:\n"
                     "- Tone and language (frustrated, abusive, calm, distressed)\n"
                     "- Explicit demands for escalation or human agent\n"
@@ -131,11 +139,15 @@ def assess_seriousness(conversation: list[dict], frustration_score: float,
                     "- Whether issue could affect multiple customers\n\n"
                     f"Current frustration score: {frustration_score}/100\n\n"
                     "Levels:\n"
-                    "  1 = Routine (basic question or mild issue)\n"
-                    "  2 = Elevated (frustrated customer, needs senior attention)\n"
-                    "  3 = Serious (angry customer, financial/legal risk, repeated failure)\n"
-                    "  4 = Critical (threats, safety concern, executive attention needed)\n\n"
-                    "Return ONLY JSON: {\"level\": <1-4>, \"reason\": \"<brief reason>\"}"
+                    "  1 = Tier 1 Support (Routine basic query)\n"
+                    "  2 = Tier 2 Support (Mild issue / basic clarification)\n"
+                    "  3 = Tier 3 Support (Technical or complex inquiry)\n"
+                    "  4 = Tier 4 Support (Advanced technical / policy issue)\n"
+                    "  5 = Senior Agent (Frustrated customer / repeated attempts)\n"
+                    "  6 = Support Manager (Managerial escalation / dispute)\n"
+                    "  7 = Business Director (High business/financial impact or missing policy information)\n"
+                    "  8 = Founder (Critical threat, executive review, total knowledge gap)\n\n"
+                    "Return ONLY JSON: {\"level\": <1-8>, \"reason\": \"<brief reason>\"}"
                 ),
             },
             {"role": "user", "content": transcript},
@@ -150,3 +162,4 @@ def assess_seriousness(conversation: list[dict], frustration_score: float,
         return json.loads(text)
     except json.JSONDecodeError:
         return {"level": 1, "reason": "Unable to assess"}
+

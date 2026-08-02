@@ -1,5 +1,5 @@
 """
-Evaluation — RAG pipeline quality metrics
+Evaluation — RAG pipeline quality metrics for ZeroBT
 """
 
 import os, json
@@ -15,7 +15,7 @@ API_KEY = os.getenv("OPENAI_API_KEY", "")
 CONFIG = json.loads((Path(__file__).parent.parent / "config.json").read_text()) \
     if (Path(__file__).parent.parent / "config.json").exists() else {}
 
-st.set_page_config(page_title="RAG Evaluation", page_icon="🧪", layout="wide")
+st.set_page_config(page_title="ZeroBT · RAG Evaluation", page_icon="🧪", layout="wide")
 store.init_db()
 
 # ── CSS ──
@@ -24,41 +24,42 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap');
 html, body, .stApp, [data-testid="stAppViewContainer"],
 [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
-    background-color: #0D0E15 !important; color: #F1F5F9 !important;
+    background-color: #F8FAFC !important; color: #0F172A !important;
     font-family: 'Inter', sans-serif !important;
 }
-[data-testid="stSidebar"] { background: #161927 !important; }
-[data-testid="stSidebar"] * { color: #F1F5F9 !important; }
+[data-testid="stSidebar"] { background: #F1F5F9 !important; border-right: 1px solid #E2E8F0 !important; }
+[data-testid="stSidebar"] * { color: #0F172A !important; }
 header[data-testid="stHeader"] { background: transparent !important; }
 #MainMenu, footer { visibility: hidden; }
-.score-pass { color: #86EFAC; font-weight: 700; }
-.score-fail { color: #FCA5A5; font-weight: 700; }
+.stMetric label { color: #64748B !important; }
+.stMetric [data-testid="stMetricValue"] { color: #0F172A !important; font-weight: 700 !important; }
+.score-pass { color: #059669; font-weight: 700; }
+.score-fail { color: #E11D48; font-weight: 700; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("## 🧪 RAG Pipeline Evaluation")
+st.markdown("## 🧪 ZeroBT RAG Pipeline Evaluation")
 st.caption(
-    "Test the retrieval and generation pipeline against known questions. "
+    "Benchmark ZeroBT retrieval and generation accuracy. "
     "Measures Faithfulness, Answer Relevance, and Context Recall."
 )
 
 # ── Load KB ──
 chunks, vectors, bm25 = kb.load_index()
 if not chunks:
-    st.warning("No documents in the knowledge base. Upload documents first.")
+    st.warning("No documents in knowledge base. Upload documents in Admin Dashboard first.")
     st.stop()
 
 # ── Test Cases ──
 st.markdown("### Define Test Cases")
-st.caption("Add questions and (optionally) expected answers to evaluate the pipeline.")
+st.caption("Add questions and optional ground-truth expected answers.")
 
 if "eval_cases" not in st.session_state:
     st.session_state.eval_cases = [
         {"question": "What is your refund policy?", "expected": ""},
-        {"question": "How do I contact support?", "expected": ""},
+        {"question": "How do I contact customer support?", "expected": ""},
     ]
 
-# Editable table
 for i, case in enumerate(st.session_state.eval_cases):
     c1, c2, c3 = st.columns([3, 3, 0.5])
     st.session_state.eval_cases[i]["question"] = c1.text_input(
@@ -78,24 +79,23 @@ if st.button("➕ Add Test Case"):
 st.divider()
 
 # ── Run Evaluation ──
-if st.button("🚀 Run Evaluation", type="primary", use_container_width=True):
+if st.button("🚀 Run Evaluation Pipeline", type="primary", use_container_width=True):
     cases = [c for c in st.session_state.eval_cases if c["question"].strip()]
     if not cases:
-        st.warning("Add at least one question.")
+        st.warning("Add at least one valid question.")
         st.stop()
 
     results = []
     progress = st.progress(0)
-    status = st.status("Running evaluation …", expanded=True)
+    status = st.status("Benchmarking RAG pipeline …", expanded=True)
 
     from openai import OpenAI
     client = OpenAI(api_key=API_KEY)
 
     for idx, case in enumerate(cases):
         q = case["question"]
-        status.write(f"📝 Evaluating: {q}")
+        status.write(f"📝 Evaluating question: '{q}'")
 
-        # Get RAG answer
         result = rag_engine.query_rag(q, chunks, vectors, bm25, API_KEY, top_k=CONFIG.get("top_k", 5))
 
         answer = result["clean_text"]
@@ -103,7 +103,6 @@ if st.button("🚀 Run Evaluation", type="primary", use_container_width=True):
         context = result.get("context_chunks", [])
         ctx_text = " ".join(c["text"] for c in context)
 
-        # ── Faithfulness (LLM judge) ──
         faith_resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -121,7 +120,6 @@ if st.button("🚀 Run Evaluation", type="primary", use_container_width=True):
         except ValueError:
             faithfulness = 0.5
 
-        # ── Answer Relevance (LLM judge) ──
         rel_resp = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -139,7 +137,6 @@ if st.button("🚀 Run Evaluation", type="primary", use_container_width=True):
         except ValueError:
             relevance = 0.5
 
-        # ── Context Recall (vs expected, if provided) ──
         recall = None
         if case["expected"].strip():
             rec_resp = client.chat.completions.create(
@@ -147,7 +144,7 @@ if st.button("🚀 Run Evaluation", type="primary", use_container_width=True):
                 messages=[
                     {"role": "system", "content":
                         "Score 0-10 how much of the expected answer is covered by the context. "
-                        "10 = all information is in the context. 0 = none is present. "
+                        "10 = all information is in context. 0 = none is present. "
                         "Return ONLY the number."},
                     {"role": "user", "content":
                         f"Expected: {case['expected']}\n\nContext: {ctx_text[:2000]}"},
@@ -169,10 +166,9 @@ if st.button("🚀 Run Evaluation", type="primary", use_container_width=True):
         })
         progress.progress((idx + 1) / len(cases))
 
-    status.update(label="Evaluation complete ✓", state="complete")
+    status.update(label="Evaluation benchmarking complete ✓", state="complete")
 
-    # ── Results Table ──
-    st.markdown("### Results")
+    st.markdown("### Benchmark Results")
 
     for r in results:
         f_class = "score-pass" if r["faithfulness"] >= 0.7 else "score-fail"
@@ -181,32 +177,30 @@ if st.button("🚀 Run Evaluation", type="primary", use_container_width=True):
         rc_class = "score-pass" if r["recall"] and r["recall"] >= 0.7 else "score-fail"
 
         st.markdown(f"""
-        <div style="background:#161927;border:1px solid #1e2235;border-radius:10px;padding:16px 20px;margin:8px 0;">
+        <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:16px 20px;margin:8px 0;box-shadow:0 1px 4px rgba(0,0,0,0.02);">
             <strong>{r['question']}</strong><br>
-            <span style="color:#94A3B8;font-size:13px;">{r['answer']}…</span><br><br>
+            <span style="color:#475569;font-size:14px;">{r['answer']}…</span><br><br>
             <span>Confidence: <strong>{r['confidence']:.0%}</strong></span> ·
             <span>Faithfulness: <span class="{f_class}">{r['faithfulness']:.0%}</span></span> ·
             <span>Relevance: <span class="{r_class}">{r['relevance']:.0%}</span></span> ·
-            <span>Recall: <span class="{rc_class}">{recall_str}</span></span>
+            <span>Context Recall: <span class="{rc_class}">{recall_str}</span></span>
         </div>
         """, unsafe_allow_html=True)
 
-    # ── Aggregate ──
     avg_faith = sum(r["faithfulness"] for r in results) / len(results)
     avg_rel = sum(r["relevance"] for r in results) / len(results)
     recall_vals = [r["recall"] for r in results if r["recall"] is not None]
     avg_recall = sum(recall_vals) / len(recall_vals) if recall_vals else None
 
-    st.markdown("### Aggregate Scores")
+    st.markdown("### Aggregate Benchmark Scores")
     ac1, ac2, ac3 = st.columns(3)
     ac1.metric("Avg Faithfulness", f"{avg_faith:.0%}")
     ac2.metric("Avg Relevance", f"{avg_rel:.0%}")
     ac3.metric("Avg Context Recall", f"{avg_recall:.0%}" if avg_recall else "—")
 
-    # ── Export ──
     import csv, io
     buf = io.StringIO()
     writer = csv.DictWriter(buf, fieldnames=results[0].keys())
     writer.writeheader()
     writer.writerows(results)
-    st.download_button("📥 Download CSV", buf.getvalue(), "evaluation_results.csv", "text/csv")
+    st.download_button("📥 Download Benchmark CSV", buf.getvalue(), "rag_evaluation_results.csv", "text/csv")
