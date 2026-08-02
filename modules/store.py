@@ -110,6 +110,32 @@ def soft_delete_document(doc_id: int):
     c.close()
 
 
+def deduplicate_documents():
+    """Find active documents with duplicate names, keep the latest one, and soft-delete older duplicates."""
+    c = _conn()
+    docs = c.execute(
+        "SELECT id, name, uploaded_at FROM documents WHERE status='active' ORDER BY uploaded_at DESC, id DESC"
+    ).fetchall()
+
+    seen_names = set()
+    to_delete = []
+
+    for d in docs:
+        name = d["name"]
+        if name in seen_names:
+            to_delete.append(d["id"])
+        else:
+            seen_names.add(name)
+
+    for doc_id in to_delete:
+        c.execute("UPDATE documents SET status='deleted' WHERE id=?", (doc_id,))
+        c.execute("DELETE FROM chunks WHERE doc_id=?", (doc_id,))
+
+    c.commit()
+    c.close()
+    return len(to_delete)
+
+
 def list_documents():
     c = _conn()
     rows = c.execute(
@@ -118,6 +144,7 @@ def list_documents():
     ).fetchall()
     c.close()
     return [dict(r) for r in rows]
+
 
 
 # ── Chunks ───────────────────────────────────────────────────────────

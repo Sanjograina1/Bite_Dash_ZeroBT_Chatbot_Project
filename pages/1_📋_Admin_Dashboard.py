@@ -63,6 +63,12 @@ header[data-testid="stHeader"] { background: transparent !important; }
 </style>
 """, unsafe_allow_html=True)
 
+# Automatically clean up any past duplicate records on page load
+store.deduplicate_documents()
+
+if "processed_file_signatures" not in st.session_state:
+    st.session_state.processed_file_signatures = set()
+
 # ── Header ───────────────────────────────────────────────────────────
 st.markdown("## 📋 Knowledge Base Management")
 st.markdown("Upload business documents, view indexing status, and manage your ZeroBT knowledge base.")
@@ -79,21 +85,28 @@ uploaded = st.file_uploader(
 if uploaded:
     chunk_size = CONFIG.get("chunk_size", 400)
     overlap = CONFIG.get("chunk_overlap", 80)
+    new_files_processed = False
 
     for f in uploaded:
+        sig = f"{f.name}_{f.size}"
+        if sig in st.session_state.processed_file_signatures:
+            continue
+
         with st.status(f"Processing **{f.name}** …", expanded=True) as status:
             try:
                 st.write("📄 Extracting text …")
                 doc_id = kb.add_document(f, API_KEY, chunk_size, overlap)
+                st.session_state.processed_file_signatures.add(sig)
+                new_files_processed = True
                 st.write(f"✅ Indexed successfully (doc #{doc_id})")
                 status.update(label=f"{f.name} — Done ✓", state="complete")
             except Exception as e:
                 st.error(f"Failed: {e}")
                 status.update(label=f"{f.name} — Error", state="error")
 
-    # Reload KB
-    st.session_state.kb_loaded = False
-    st.rerun()
+    if new_files_processed:
+        st.session_state.kb_loaded = False
+        st.rerun()
 
 # ── Document Table ───────────────────────────────────────────────────
 st.markdown("### Indexed Documents")

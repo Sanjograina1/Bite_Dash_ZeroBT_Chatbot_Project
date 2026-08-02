@@ -1,0 +1,19 @@
+BITEDASH - PAYMENTS, FOODIE PASS & PROMOTIONS
+
+1. Accepted Payment Modes
+- Credit/Debit Cards (Visa, MasterCard, RuPay, Amex).
+- UPI (Google Pay, PhonePe, Paytm, BHIM).
+- Net Banking and Mobile Wallets.
+- Cash on Delivery (COD) is available only for orders up to a maximum limit of ₹1,200.
+
+2. BiteDash "FoodiePass" Subscription
+- Price: ₹99 per month.
+- Benefits: 
+  * Unlimited Free Delivery on all orders above ₹199.
+  * Extra 10% discount up to ₹50 at top-rated partner kitchens.
+  * Priority customer support escalation.
+- Cancellation: FoodiePass can be canceled anytime from the profile settings. Auto-renewal can be turned off with zero penalty.
+
+3. Coupon Codes & Referral Program
+- Welcome Coupon: Use code 'FIRSTBITE' to get 30% off up to ₹75 on your first order (Minimum order value ₹199).
+- Referral Bonus: Refer a friend using your unique code. Once they place their first order, both you and your friend receive a ₹100 wallet voucher valid for 30 days.

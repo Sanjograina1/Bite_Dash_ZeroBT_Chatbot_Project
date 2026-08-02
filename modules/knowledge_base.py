@@ -131,6 +131,12 @@ def add_document(uploaded_file, api_key: str, chunk_size: int = 400,
     with open(save_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
+    # Check and replace existing active document with same name
+    existing_docs = store.list_documents()
+    for d in existing_docs:
+        if d["name"] == name and d["status"] == "active":
+            store.soft_delete_document(d["id"])
+
     # Register in DB
     doc_id = store.add_document_record(name, suffix)
 
